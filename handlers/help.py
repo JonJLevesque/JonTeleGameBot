@@ -27,6 +27,12 @@ HELP_TEXT = """\
 /beautiful — next head-to-head: 2000 places, two photos, you both vote;
 winners advance until one place rules the world (status | reset)
 
+<b>Daily rituals</b>
+/wordle — the real NYT Wordle, in here: DM me to play, results auto-post
+to the group, fastest solver wins the day's 🍪 (streaks + stats tracked)
+/dailyq on|now|off — one question a day for you both, and they get deeper
+(and, with spicy mode, steamier) as the days go
+
 <b>Other</b>
 /help — this message
 
@@ -48,6 +54,8 @@ COMMAND_LIST = [
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),
     ("beautiful", "World's Most Beautiful Place photo knockout"),
+    ("wordle", "Daily NYT Wordle duel (DM me to play)"),
+    ("dailyq", "Daily question ritual (on|now|off)"),
     ("help", "List all commands"),
 ]
 

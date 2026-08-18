@@ -70,6 +70,12 @@ CATEGORY_INSTRUCTIONS = {
         "intriguing without the question. Hard limit: 150 characters (it's shown "
         "in a small popup)."
     ),
+    "dailyq": (
+        "Write one 'daily question' for the chat's question-of-the-day ritual — "
+        "a single open question both people answer. The arc matters: match the "
+        "intimacy stage given in the context, never colder, at most a half-step "
+        "warmer. One sentence, no preamble."
+    ),
     "roleplay": (
         "Write a roleplay setup: one scenario (1-2 sentences, a situation with "
         "built-in tension or absurdity) and one role per listed player. The roles "
@@ -109,7 +115,7 @@ def _context_lines(*, duo, spicy, user_name, subject, names):
 
 
 async def generate(category, chat_id, *, duo=False, spicy=False,
-                   user_name="the player", subject=None, names=None):
+                   user_name="the player", subject=None, names=None, extra=None):
     """Return a fresh prompt string, or None (caller falls back to static)."""
     if not ENABLED:
         return None
@@ -117,6 +123,8 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
     parts = [CATEGORY_INSTRUCTIONS[category]]
     parts += _context_lines(duo=duo, spicy=spicy, user_name=user_name,
                             subject=subject, names=names)
+    if extra:
+        parts.append(extra)
     if _recent[key]:
         parts.append(
             "Recently used in this chat (do something clearly different):\n- "

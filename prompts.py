@@ -359,3 +359,85 @@ def pool(category: str, *, duo: bool, spicy: bool) -> list[str]:
     if spicy:
         out = out + s_any + (s_duo if duo else s_grp)
     return out
+
+
+# --------------------------------------------------------------------------
+# Daily question ritual (/dailyq): an ordered arc inspired by Aron's "36
+# questions" — starts light, gets steadily more personal and intimate. The
+# index into this list is per-chat state, so each chat walks the arc once.
+
+DAILY_QUESTIONS = [
+    # Warm-up: easy, fun, zero risk
+    "Given the choice of anyone in the world, whom would you want as a dinner guest?",
+    "Would you like to be famous? In what way?",
+    "Before making a phone call, do you ever rehearse what you're going to say? Why?",
+    "What would constitute a perfect day for you?",
+    "When did you last sing to yourself? To someone else?",
+    "If you could wake up tomorrow having gained one quality or ability, what would it be?",
+    "What's a small thing that instantly improves your day?",
+    "What's the most spontaneous thing you've ever done?",
+    "If you could live anywhere in the world for one year, where and why?",
+    "What's something you're weirdly good at?",
+    "What did you want to be when you were 10, and what happened to that dream?",
+    "For what in your life do you feel most grateful right now?",
+    # Getting personal: values, history, self-image
+    "If you could change anything about the way you were raised, what would it be?",
+    "Take four minutes and tell your life story in as much detail as possible.",
+    "If a crystal ball could tell you the truth about yourself, your life, or the future, what would you want to know?",
+    "Is there something you've dreamed of doing for a long time? Why haven't you done it?",
+    "What is the greatest accomplishment of your life so far?",
+    "What do you value most in a friendship?",
+    "What is your most treasured memory?",
+    "What is your most terrible memory?",
+    "If you knew that in one year you'd die suddenly, would you change anything about the way you're living? Why?",
+    "What does friendship — real friendship — mean to you?",
+    "What roles do love and affection play in your life?",
+    "How close and warm was your family growing up? Do you feel your childhood was happier than most people's?",
+    # Closer: about the two of you
+    "Name three things you and I appear to have in common.",
+    "What's something you've always wanted to ask me but haven't?",
+    "Share five things you honestly like about me.",
+    "What's your first memory of me?",
+    "What was your first impression of me, and how wrong was it?",
+    "If we were going to become closer than we are, what would you want me to know about you?",
+    "Tell me something you've never told anyone — or almost no one.",
+    "What, if anything, is too serious to be joked about?",
+    "When did you last cry in front of another person? By yourself?",
+    "What's something about me you're jealous of?",
+    "If you were to die this evening with no chance to talk to anyone, what would you most regret not having told someone? Why haven't you told them yet?",
+    "Of all the people in your life, whose death would you find most disturbing? (Yes, you have to answer.)",
+    # Deep end: vulnerability, us, the future
+    "Complete this sentence: 'I wish I had someone with whom I could share…'",
+    "What's one thing about yourself you're still learning to accept?",
+    "When do you feel most like yourself around me?",
+    "What's a moment between us you think about more than you've admitted?",
+    "What do you think we'll be doing in ten years?",
+    "What's the hardest thing you've ever forgiven someone for?",
+    "What's one way I've changed you?",
+    "If tonight was our last conversation ever, what would you want to say?",
+    "What are you most afraid of in relationships — and where did that come from?",
+    "What's something you want us to do together that we keep not doing?",
+    "Describe the last time you felt truly, stupidly happy.",
+    "What's one thing you hope never changes between us?",
+]
+
+# Appended to the arc when /spicymode is on for the chat: same escalation
+# philosophy — suggestive, adults-only, about the people in this chat.
+DAILY_QUESTIONS_SPICY = [
+    "What were you actually thinking the first time you found me attractive?",
+    "What's the most attractive non-physical thing about me?",
+    "Describe your idea of a perfect kiss. Be specific.",
+    "What's something flirty you almost sent me but deleted?",
+    "Where do you like to be touched that nobody's ever asked about?",
+    "What outfit of mine do you think about?",
+    "What's a fantasy you've never said out loud?",
+    "What's the boldest thing you've ever wanted to do with me but haven't dared?",
+    "Voice message: say the thing you'd whisper if we were alone right now.",
+    "What's something new you want to try — that involves me?",
+    "Describe the moment you were most attracted to me. What did I do?",
+    "If we had 24 hours together with zero obligations and zero judgment, walk me through the itinerary.",
+    "What's a compliment about your body you secretly wish someone would give you?",
+    "What song would you want playing? You know for when.",
+    "What's your favorite memory of us that you'd never tell anyone else about?",
+    "Truth: have you ever dreamed about me? Details required.",
+]

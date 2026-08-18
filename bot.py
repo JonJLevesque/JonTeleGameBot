@@ -6,7 +6,7 @@ from telegram.ext import Application, ContextTypes, TypeHandler
 
 import config
 import db
-from handlers import all_handlers, track_users
+from handlers import all_handlers, dailyq, track_users
 from handlers.help import COMMAND_LIST
 
 logging.basicConfig(
@@ -24,6 +24,7 @@ async def _post_init(app: Application):
     await app.bot.set_my_commands(
         [BotCommand(cmd, desc) for cmd, desc in COMMAND_LIST]
     )
+    dailyq.restore_jobs(app)
     log.info("Bot started as @%s", app.bot.username)
 
 

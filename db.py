@@ -72,6 +72,36 @@ def init(path: str) -> None:
             state   TEXT NOT NULL              -- JSON blob owned by handlers/beautiful.py
         );
 
+        CREATE TABLE IF NOT EXISTS wordle_days (
+            day    TEXT PRIMARY KEY,              -- ISO date
+            number INTEGER NOT NULL,              -- public puzzle number
+            word   TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS wordle_plays (
+            user_id    INTEGER NOT NULL,
+            day        TEXT NOT NULL,
+            first_name TEXT NOT NULL,
+            guesses    TEXT NOT NULL DEFAULT '[]',  -- JSON list of words
+            done       INTEGER NOT NULL DEFAULT 0,
+            won        INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, day)
+        );
+
+        CREATE TABLE IF NOT EXISTS wordle_duels (
+            chat_id   INTEGER NOT NULL,
+            day       TEXT NOT NULL,
+            winner_id INTEGER,                    -- NULL = tie
+            PRIMARY KEY (chat_id, day)
+        );
+
+        CREATE TABLE IF NOT EXISTS dailyq (
+            chat_id INTEGER PRIMARY KEY,
+            hour    INTEGER NOT NULL,
+            minute  INTEGER NOT NULL,
+            idx     INTEGER NOT NULL DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS paranoia_rounds (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id     INTEGER NOT NULL,
@@ -278,6 +308,133 @@ def save_beautiful(chat_id: int, state: dict) -> None:
 def clear_beautiful(chat_id: int) -> None:
     with _db() as c:
         c.execute("DELETE FROM beautiful WHERE chat_id = ?", (chat_id,))
+
+
+# --------------------------------------------------------------------- wordle
+
+def wordle_day(day: str):
+    return _db().execute(
+        "SELECT * FROM wordle_days WHERE day = ?", (day,)
+    ).fetchone()
+
+
+def save_wordle_day(day: str, number: int, word: str) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO wordle_days (day, number, word) VALUES (?, ?, ?)",
+            (day, number, word),
+        )
+
+
+def wordle_play(user_id: int, day: str):
+    return _db().execute(
+        "SELECT * FROM wordle_plays WHERE user_id = ? AND day = ?", (user_id, day)
+    ).fetchone()
+
+
+def save_wordle_play(user_id: int, day: str, first_name: str,
+                     guesses: list[str], done: bool, won: bool) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO wordle_plays (user_id, day, first_name, guesses, done, won) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT (user_id, day) DO UPDATE SET "
+            "  guesses = excluded.guesses, done = excluded.done, won = excluded.won",
+            (user_id, day, first_name, json.dumps(guesses), int(done), int(won)),
+        )
+
+
+def wordle_finishers(chat_id: int, day: str):
+    """Chat members (from the member cache) who finished today's puzzle."""
+    return _db().execute(
+        "SELECT p.* FROM wordle_plays p "
+        "JOIN known_users k ON k.user_id = p.user_id AND k.chat_id = ? "
+        "WHERE p.day = ? AND p.done = 1 ORDER BY rowid",
+        (chat_id, day),
+    ).fetchall()
+
+
+def wordle_duel(chat_id: int, day: str):
+    return _db().execute(
+        "SELECT * FROM wordle_duels WHERE chat_id = ? AND day = ?", (chat_id, day)
+    ).fetchone()
+
+
+def save_wordle_duel(chat_id: int, day: str, winner_id: int | None) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO wordle_duels (chat_id, day, winner_id) "
+            "VALUES (?, ?, ?)",
+            (chat_id, day, winner_id),
+        )
+
+
+def wordle_user_days(user_id: int) -> list:
+    """All finished plays for a user: [(day, won, n_guesses)] newest first."""
+    rows = _db().execute(
+        "SELECT day, won, guesses FROM wordle_plays "
+        "WHERE user_id = ? AND done = 1 ORDER BY day DESC",
+        (user_id,),
+    ).fetchall()
+    return [(r["day"], bool(r["won"]), len(json.loads(r["guesses"]))) for r in rows]
+
+
+def wordle_duel_wins(chat_id: int, user_id: int) -> int:
+    row = _db().execute(
+        "SELECT COUNT(*) AS n FROM wordle_duels WHERE chat_id = ? AND winner_id = ?",
+        (chat_id, user_id),
+    ).fetchone()
+    return row["n"]
+
+
+def chats_for_user(user_id: int) -> list[int]:
+    rows = _db().execute(
+        "SELECT chat_id FROM known_users WHERE user_id = ?", (user_id,)
+    ).fetchall()
+    return [r["chat_id"] for r in rows]
+
+
+def chat_members(chat_id: int):
+    return _db().execute(
+        "SELECT user_id, first_name FROM known_users WHERE chat_id = ?", (chat_id,)
+    ).fetchall()
+
+
+# -------------------------------------------------------------- daily question
+
+def dailyq_get(chat_id: int):
+    return _db().execute(
+        "SELECT * FROM dailyq WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+
+
+def dailyq_all():
+    return _db().execute("SELECT * FROM dailyq").fetchall()
+
+
+def dailyq_set(chat_id: int, hour: int, minute: int) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO dailyq (chat_id, hour, minute) VALUES (?, ?, ?) "
+            "ON CONFLICT (chat_id) DO UPDATE SET hour = excluded.hour, "
+            "  minute = excluded.minute",
+            (chat_id, hour, minute),
+        )
+
+
+def dailyq_bump(chat_id: int) -> int:
+    """Advance the question index and return the index to use now."""
+    with _db() as c:
+        c.execute("UPDATE dailyq SET idx = idx + 1 WHERE chat_id = ?", (chat_id,))
+    row = _db().execute(
+        "SELECT idx FROM dailyq WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return row["idx"] - 1 if row else 0
+
+
+def dailyq_off(chat_id: int) -> None:
+    with _db() as c:
+        c.execute("DELETE FROM dailyq WHERE chat_id = ?", (chat_id,))
 
 
 # ------------------------------------------------------------------- paranoia
