@@ -29,8 +29,8 @@ HELP_TEXT = """\
 winners advance until one place rules the world (status | reset)
 
 <b>Daily rituals</b>
-/wordle — the real NYT Wordle, in here: DM me to play, results auto-post
-to the group, fastest solver wins the day's 🍪 (streaks + stats tracked)
+/wordle — the real NYT Wordle: I DM you the puzzle (or tap the Play
+button), results auto-post to the group, fastest solver wins the day's 🍪
 /dailyq on|now|off — one question a day for you both, and they get deeper
 (and, with spicy mode, steamier) as the days go
 
@@ -66,8 +66,18 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_html(HELP_TEXT)
 
 
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Deep links: t.me/<bot>?start=wordle from the group's Play button.
+    if (update.effective_chat.type == "private"
+            and context.args and context.args[0] == "wordle"):
+        from . import wordle
+        await wordle.begin_from_start(update, context)
+        return
+    await help_command(update, context)
+
+
 def get_handlers():
     return [
-        CommandHandler("start", help_command),
+        CommandHandler("start", start_command),
         CommandHandler("help", help_command),
     ]

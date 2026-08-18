@@ -20,7 +20,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import httpx
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import TelegramError
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -183,6 +183,41 @@ async def _announce_finish(context: ContextTypes.DEFAULT_TYPE, user_id: int,
             pass
 
 
+async def _begin_dm_game(context: ContextTypes.DEFAULT_TYPE, user) -> bool:
+    """(Re)start today's game in the user's DM. False if the DM is closed
+    (the user has never started a private chat with the bot)."""
+    day, number, word = await _todays_word()
+    play = db.wordle_play(user.id, day)
+    guesses = json.loads(play["guesses"]) if play else []
+    if play and play["done"]:
+        s = f"{len(guesses)}/{MAX_GUESSES}" if play["won"] else f"X/{MAX_GUESSES}"
+        text = (
+            f"You already finished Wordle #{number:,} today: <b>{s}</b>\n"
+            f"{_grid(guesses, word, letters=True)}\n"
+            f"New word at midnight! 🌙"
+        )
+    else:
+        if play is None:
+            db.save_wordle_play(user.id, day, user.first_name, [], False, False)
+        text = (
+            f"🟩 <b>Wordle #{number:,}</b> — same word as today's NYT puzzle.\n"
+            f"Type a 5-letter word to guess. {MAX_GUESSES} tries, results "
+            f"auto-post to your group. Good luck!"
+        )
+        if guesses:
+            text += f"\n\nYour board so far:\n{_grid(guesses, word, letters=True)}"
+    try:
+        await context.bot.send_message(user.id, text, parse_mode="HTML")
+        return True
+    except TelegramError:
+        return False
+
+
+async def begin_from_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Deep-link entry: the user tapped the group's Play button (t.me/bot?start=wordle)."""
+    await _begin_dm_game(context, update.effective_user)
+
+
 # ------------------------------------------------------------------ handlers
 
 async def wordle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -212,31 +247,22 @@ async def wordle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f" · streak {_streak(m['user_id'])} · avg {avg}"
                 )
             lines.append(line)
-        lines.append("\nDM me /wordle to play — same word as the real NYT puzzle!")
-        await msg.reply_html("\n".join(lines))
+        if await _begin_dm_game(context, user):
+            lines.append(f"\n📬 {user.first_name} — today's puzzle is in your DMs!")
+        else:
+            lines.append(
+                f"\n{user.first_name} — tap below and hit Start: "
+                f"the puzzle begins automatically."
+            )
+        play_btn = InlineKeyboardMarkup([[InlineKeyboardButton(
+            "🟩 Play today's Wordle",
+            url=f"https://t.me/{context.bot.username}?start=wordle",
+        )]])
+        await msg.reply_html("\n".join(lines), reply_markup=play_btn)
         return
 
     # Private chat: start or resume today's game.
-    play = db.wordle_play(user.id, day)
-    guesses = json.loads(play["guesses"]) if play else []
-    if play and play["done"]:
-        s = f"{len(guesses)}/{MAX_GUESSES}" if play["won"] else f"X/{MAX_GUESSES}"
-        await msg.reply_html(
-            f"You already finished Wordle #{number:,} today: <b>{s}</b>\n"
-            f"{_grid(guesses, word, letters=True)}\n"
-            f"New word at midnight! 🌙"
-        )
-        return
-    if play is None:
-        db.save_wordle_play(user.id, day, user.first_name, [], False, False)
-    text = (
-        f"🟩 <b>Wordle #{number:,}</b> — same word as today's NYT puzzle.\n"
-        f"Type a 5-letter word to guess. {MAX_GUESSES} tries, results auto-post "
-        f"to your group. Good luck!"
-    )
-    if guesses:
-        text += f"\n\nYour board so far:\n{_grid(guesses, word, letters=True)}"
-    await msg.reply_html(text)
+    await _begin_dm_game(context, user)
 
 
 async def guess_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
