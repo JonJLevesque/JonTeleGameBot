@@ -22,6 +22,7 @@ HELP_TEXT = """\
 /tictactoe [@user] — Tic-Tac-Toe ❌⭕
 /reversi [@user] — Reversi/Othello ⚫⚪
 /checkers [@user] — Checkers 🔴⚪
+/chess [@user] — Chess ♔♚ (castling, en passant, the lot)
 
 <b>World's Most Beautiful Place</b> 🌍
 /beautiful — next head-to-head: 2000 places, two photos, you both vote;
@@ -53,6 +54,7 @@ COMMAND_LIST = [
     ("tictactoe", "Challenge someone to Tic-Tac-Toe"),
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),
+    ("chess", "Challenge someone to Chess"),
     ("beautiful", "World's Most Beautiful Place photo knockout"),
     ("wordle", "Daily NYT Wordle duel (DM me to play)"),
     ("dailyq", "Daily question ritual (on|now|off)"),

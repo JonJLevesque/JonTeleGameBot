@@ -201,6 +201,7 @@ def get_handlers():
         CommandHandler("tictactoe", _make_start_handler("ttt")),
         CommandHandler("reversi", _make_start_handler("reversi")),
         CommandHandler("checkers", _make_start_handler("checkers")),
+        CommandHandler("chess", _make_start_handler("chess")),
         CallbackQueryHandler(game_callback, pattern=r"^bg:\d+:"),
     ]
     return handlers
