@@ -46,13 +46,22 @@ async def roleplay(update: Update, context: ContextTypes.DEFAULT_TYPE):
             body = html.escape(body)
 
     if not body:
-        scenarios = list(prompts.ROLEPLAY_SCENARIOS)
-        if duo:
-            scenarios += prompts.ROLEPLAY_SCENARIOS_DUO
-        if spicy:
-            scenarios += prompts.ROLEPLAY_SCENARIOS_SPICY
-        scenario = random.choice(scenarios)
-        roles = random.sample(prompts.ROLEPLAY_ROLES, k=len(players))
+        if spicy and len(players) >= 2:
+            # Spicy roleplay is a matched pair: daddy energy vs babygirl
+            # energy, shuffled so nobody is typecast. Extra players (bigger
+            # chats) get regular roles around the two leads.
+            scenario, lead, brat = random.choice(prompts.ROLEPLAY_SPICY_DYNAMICS)
+            pair = [lead, brat]
+            random.shuffle(pair)
+            roles = pair + random.sample(
+                prompts.ROLEPLAY_ROLES, k=len(players) - 2
+            )
+        else:
+            scenarios = list(prompts.ROLEPLAY_SCENARIOS)
+            if duo:
+                scenarios += prompts.ROLEPLAY_SCENARIOS_DUO
+            scenario = random.choice(scenarios)
+            roles = random.sample(prompts.ROLEPLAY_ROLES, k=len(players))
         cast = "\n".join(
             f"• <b>{name}</b> — {role}" for (_, name), role in zip(players, roles)
         )

@@ -123,6 +123,18 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
     parts = [CATEGORY_INSTRUCTIONS[category]]
     parts += _context_lines(duo=duo, spicy=spicy, user_name=user_name,
                             subject=subject, names=names)
+    if spicy and category == "roleplay":
+        parts.append(
+            "Spicy roleplay in this chat means one specific flavor: build the "
+            "scenario around a playful daddy/babygirl power dynamic between "
+            "the first two players. One role gets the daddy energy — calm, in "
+            "charge, caretaker-with-an-edge, says things like “careful” and "
+            "“come here” as complete sentences. The other gets the babygirl "
+            "energy — sweet, bratty, testing the rules on purpose, losing on "
+            "purpose. Use the words daddy/babygirl when they land naturally. "
+            "Decide freely which player gets which role (vary it). Charged "
+            "and suggestive, never explicit."
+        )
     if extra:
         parts.append(extra)
     if _recent[key]:

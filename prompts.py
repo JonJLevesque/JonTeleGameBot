@@ -267,13 +267,61 @@ ROLEPLAY_SCENARIOS_DUO = [
     "You're pen pals meeting in person for the first time after ten years of letters.",
 ]
 
-ROLEPLAY_SCENARIOS_SPICY = [
-    "You're all on a blind-date game show and the host just walked out.",
-    "You're exes who all accidentally booked the same romantic getaway.",
-    "You're at a masquerade ball and someone just dropped a love letter with no name.",
-    "You're speed-dating and the timer is broken — every date is now unlimited.",
-    "You're wedding guests and someone just objected. Decide who and why.",
-    "You're on the world's most awkward double date, roles to be determined.",
+# Spicy🌶️ roleplay: every entry is (scenario, daddy-energy role, babygirl-energy
+# role). The two roles are shuffled between the first two players cast, so the
+# dynamic is always in play but nobody's typecast. Suggestive, never explicit.
+ROLEPLAY_SPICY_DYNAMICS = [
+    ("Closing time at the bar one of you owns. The last customer has had "
+     "exactly one drink and zero intention of leaving.",
+     "the owner — daddy energy: flips chairs onto tables slowly, says "
+     "“you're trouble” like a compliment",
+     "the regular — babygirl energy: orders another drink they don't want, "
+     "just to watch it get brought over"),
+    ("A mob boss has to babysit the star witness in a safehouse overnight.",
+     "the boss — dangerous everywhere else, patient here; “eat your "
+     "dinner” is non-negotiable",
+     "the witness — a flight risk in fuzzy socks, negotiating everything, "
+     "winning nothing"),
+    ("Private dance lesson, one week before the wedding you're both "
+     "pretending this is about.",
+     "the instructor — hands firm, counts slow, “again” means again",
+     "the student — steps on toes on purpose, apologizes without meaning it"),
+    ("A bodyguard and the celebrity who keeps sneaking out for 2am snacks.",
+     "the bodyguard — catches every escape attempt and isn't mad, just "
+     "disappointed; “careful” is a full sentence",
+     "the celebrity — escapes strictly in order to be caught"),
+    ("Road trip. The GPS died an hour ago and only one of you thinks that's "
+     "a problem.",
+     "the driver — one hand on the wheel, “we're not lost”, decides "
+     "when snack stops happen",
+     "the passenger — feet on the dash, asks “are we there yet” "
+     "recreationally"),
+    ("The CEO's coffee order has been wrong all week. Today the new hire "
+     "brought the right one, plus an attitude.",
+     "the CEO — expensive watch, low voice, “come here” from across "
+     "the office",
+     "the new hire — sweet smile, insubordinate on purpose, knows exactly "
+     "which rules are being broken"),
+    ("A pirate captain discovers a stowaway three days out to sea.",
+     "the captain — should order them overboard, instead assigns the cabin "
+     "next door; “stay where I can see you”",
+     "the stowaway — zero remorse, negotiating dinner terms from inside a "
+     "barrel"),
+    ("The storm knocked the cabin's power out. One flashlight, one blanket, "
+     "and an argument about who gets which.",
+     "the one who built the fire — “come here, you're shivering” is "
+     "a command, not an offer",
+     "the one who “forgot” to pack warm clothes — cold on purpose"),
+    ("A tattoo artist and the walk-in who cannot sit still.",
+     "the artist — steady hands, “hold still, baby” in a voice that "
+     "works",
+     "the walk-in — flinches specifically to get held in place; picked a "
+     "design that needs three sessions"),
+    ("Poker night. One of you is losing on purpose. The other knows.",
+     "the house — daddy energy: stacks chips slowly, raises stakes that "
+     "aren't money",
+     "the player — babygirl energy: all-in with a losing hand and a winning "
+     "smile"),
 ]
 
 # Secret phrases for /taboo: the describer must get the chat to guess the
