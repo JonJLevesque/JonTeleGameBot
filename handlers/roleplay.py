@@ -1,10 +1,10 @@
-"""Roleplay scenario generator (/roleplay) and the 18+ toggle (/spicymode).
+"""Roleplay scenario generator (/roleplay) and the Spicy🌶️ toggle (/spicymode).
 
 /roleplay picks a random scenario and hands random roles to up to four chat
 members (the command sender always gets one; the rest come from the cached
 member list). The group acts it out in chat.
 
-/spicymode on|off is restricted to chat admins and unlocks the 18+ prompt
+/spicymode on|off is restricted to chat admins and unlocks the Spicy🌶️ prompt
 pools for /truthordare, /wouldyourather and /roleplay in that chat.
 """
 import html
@@ -73,7 +73,7 @@ async def spicy_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if arg not in ("on", "off"):
         state = "ON 🌶" if db.is_spicy(chat_id) else "off"
         await update.effective_message.reply_text(
-            f"Spicy (18+) mode is currently {state}.\n"
+            f"Spicy🌶️ mode is currently {state}.\n"
             "Chat admins can change it with /spicymode on or /spicymode off."
         )
         return
@@ -85,7 +85,7 @@ async def spicy_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db.set_spicy(chat_id, arg == "on")
     if arg == "on":
         await update.effective_message.reply_text(
-            "🌶 Spicy (18+) mode is ON for this chat — flirtier prompts are now "
+            "Spicy🌶️ mode is ON for this chat — flirtier prompts are now "
             "in the mix for /truthordare, /wouldyourather and /roleplay. "
             "Admins: make sure everyone here is an adult and on board."
         )

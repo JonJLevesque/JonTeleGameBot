@@ -24,7 +24,7 @@ async def _draw(category: str, update: Update, context: ContextTypes.DEFAULT_TYP
     configured, otherwise (or on any AI failure) drawn from the static banks.
 
     The pool adapts to the chat: two-person chats get the duo banks, group
-    chats the group banks; /spicymode adds the 18+ pool. {subject} is filled
+    chats the group banks; /spicymode adds the Spicy🌶️ pool. {subject} is filled
     with a random other member's name; if nobody else is known yet, those
     prompts are skipped."""
     chat_id = update.effective_chat.id

@@ -133,7 +133,7 @@ WOULD_YOU_RATHER_DUO = [
     "Would you rather only be able to talk to {subject} in memes, or only in extremely formal business English?",
 ]
 
-# ---------------------------------------------------------------- 18+ pools
+# ------------------------------------------------------------ Spicy🌶️ pools
 # Unlocked per chat with /spicymode on (admins only). These are ADDED to the
 # regular pools, not a replacement. Flirty party-game territory, not explicit.
 

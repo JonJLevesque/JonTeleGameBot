@@ -11,7 +11,7 @@ HELP_TEXT = """\
 /paranoia [@user] — whisper a secret question to a player; they answer aloud, then flip the coin to see if it's revealed
 /taboo — get a secret phrase and make the chat guess it in 3 clues, without using its words (winner and describer earn a 🍪)
 /roleplay — random scenario + random roles for chat members to act out
-/spicymode on|off — admins: unlock 18+ prompts for this chat
+/spicymode on|off — admins: unlock Spicy🌶️ prompts for this chat
 
 <b>Cookie economy</b> 🍪
 /cookie @user — award a cookie (or reply to their message with /cookie)
@@ -46,7 +46,7 @@ COMMAND_LIST = [
     ("paranoia", "Whisper a secret question to a player"),
     ("taboo", "Secret phrase, 3 clues, no forbidden words"),
     ("roleplay", "Random scenario + roles to act out"),
-    ("spicymode", "Admins: toggle 18+ prompts (on/off)"),
+    ("spicymode", "Admins: toggle Spicy🌶️ prompts (on/off)"),
     ("cookie", "Award a cookie (@user or reply)"),
     ("cookies", "Check a cookie balance"),
     ("cookieboard", "Cookie leaderboard for this chat"),
