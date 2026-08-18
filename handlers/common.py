@@ -1,5 +1,6 @@
 """Helpers shared by the command handlers."""
 import time
+from datetime import datetime
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -7,6 +8,7 @@ from telegram.ext import ContextTypes
 import db
 
 GROUP_TYPES = ("group", "supergroup")
+LOCAL_TZ = datetime.now().astimezone().tzinfo  # host timezone for daily jobs
 
 _member_counts: dict[int, tuple[int, float]] = {}  # chat_id -> (count, expiry)
 

@@ -14,7 +14,7 @@ deepest stage (falling back to reprises of the deep half of the arc).
 import logging
 import random
 import re
-from datetime import datetime, time
+from datetime import time
 
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
@@ -22,12 +22,11 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 import ai
 import db
 import prompts
-from .common import require_group
+from .common import LOCAL_TZ, require_group
 
 log = logging.getLogger("partybot.dailyq")
 
 DEFAULT_TIME = (20, 0)  # 8pm local: intimate questions are evening questions
-LOCAL_TZ = datetime.now().astimezone().tzinfo
 
 _STAGES = [
     (12, "Stage: warm-up — light, fun, zero risk."),

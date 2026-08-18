@@ -8,10 +8,33 @@ sqlite3 calls are synchronous but each statement is microseconds of work,
 so they are called directly from async handlers. WAL mode keeps readers
 and the single writer from blocking each other.
 """
+import glob
 import json
+import os
 import sqlite3
+import time
 
 _conn: sqlite3.Connection | None = None
+
+
+def backup(dest_dir: str, keep: int = 14) -> str:
+    """Consistent online backup via SQLite's backup API; prunes old copies."""
+    os.makedirs(dest_dir, exist_ok=True)
+    dest = os.path.join(
+        dest_dir, f"partybot-{time.strftime('%Y%m%d-%H%M%S')}.db"
+    )
+    with sqlite3.connect(dest) as target:
+        _db().backup(target)
+    for old in sorted(glob.glob(os.path.join(dest_dir, "partybot-*.db")))[:-keep]:
+        os.remove(old)
+    return dest
+
+
+def latest_backup_age_hours(dest_dir: str) -> float | None:
+    files = glob.glob(os.path.join(dest_dir, "partybot-*.db"))
+    if not files:
+        return None
+    return (time.time() - max(os.path.getmtime(f) for f in files)) / 3600
 
 
 def init(path: str) -> None:
