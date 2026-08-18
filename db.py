@@ -349,7 +349,7 @@ def wordle_finishers(chat_id: int, day: str):
     return _db().execute(
         "SELECT p.* FROM wordle_plays p "
         "JOIN known_users k ON k.user_id = p.user_id AND k.chat_id = ? "
-        "WHERE p.day = ? AND p.done = 1 ORDER BY rowid",
+        "WHERE p.day = ? AND p.done = 1 ORDER BY p.rowid",
         (chat_id, day),
     ).fetchall()
 
