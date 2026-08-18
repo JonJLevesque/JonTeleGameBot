@@ -7,7 +7,8 @@ A message listener does the refereeing automatically:
 
   * every plain-text message from the describer counts as a clue (1/3, 2/3…);
     a 4th one loses the round,
-  * a clue containing any word of the phrase loses the round instantly,
+  * a clue containing any key word of the phrase loses the round instantly
+    (stopwords like "but"/"no" are fair game — see STOPWORDS),
   * any other member whose message contains the phrase wins the round —
     guesser and describer each earn a cookie.
 
@@ -32,9 +33,24 @@ from .common import GROUP_TYPES, require_group
 
 MAX_CLUES = 3
 
+# Little grammar words are fair game in clues — otherwise a phrase like
+# "seen but no reply" forbids "but" and "no" and clues become impossible.
+# Only the meaningful words of the phrase lose the round.
+STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if",
+    "in", "is", "it", "its", "me", "my", "no", "not", "of", "on", "or",
+    "so", "the", "to", "was", "we", "you", "your", "i",
+}
+
 
 def _words(text: str) -> list[str]:
     return re.findall(r"[\w']+", text.lower())
+
+
+def _forbidden(phrase: str) -> set[str]:
+    words = set(_words(phrase))
+    meaningful = words - STOPWORDS
+    return meaningful or words  # never an empty forbidden set
 
 
 async def start_taboo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -57,7 +73,8 @@ async def start_taboo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_html(
         f"🤐 <b>Taboo!</b>\n"
         f"<b>{describer.first_name}</b> has a secret phrase and must make you "
-        f"guess it — without using <i>any</i> of its words, in at most "
+        f"guess it — without using its <i>key words</i> (little words like "
+        f"“but” and “no” are fine), in at most "
         f"<b>{MAX_CLUES} clue messages</b>.\n\n"
         f"Everyone else: type your guesses right here in the chat. "
         f"Correct guess = 🍪 for the guesser <i>and</i> the describer!",
@@ -80,9 +97,11 @@ async def taboo_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if action == "v":
+        banned = ", ".join(sorted(_forbidden(rnd["phrase"])))
         await query.answer(
             f"🤫 Your phrase: “{rnd['phrase']}”\n"
-            f"Don't use any of those words! Clues used: {rnd['clues_used']}/{MAX_CLUES}",
+            f"Forbidden words: {banned}\n"
+            f"Clues used: {rnd['clues_used']}/{MAX_CLUES}",
             show_alert=True,
         )
         return
@@ -108,11 +127,10 @@ async def referee(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if rnd is None:
         return
 
-    phrase_words = set(_words(rnd["phrase"]))
     msg_words = _words(msg.text)
 
     if user.id == rnd["describer_id"]:
-        forbidden = phrase_words & set(msg_words)
+        forbidden = _forbidden(rnd["phrase"]) & set(msg_words)
         if forbidden:
             db.finish_taboo(rnd["id"])
             await msg.reply_html(

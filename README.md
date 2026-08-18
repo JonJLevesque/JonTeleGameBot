@@ -25,7 +25,7 @@ Two features worth knowing up front:
 | `/truthordare` | Random truth or dare prompt |
 | `/wouldyourather` | Random "would you rather" dilemma |
 | `/paranoia [@user]` | Whispers a secret question to a player (via a button only they can open); they answer aloud, then flip a coin — heads reveals the question, tails keeps it secret. Refusing costs a dare. |
-| `/taboo` | The bot whispers you a secret phrase (e.g. "I hate you"); make the chat guess it **without using any of its words**, in at most 3 clue messages. The bot referees automatically: it counts your clues, catches forbidden words, detects correct guesses, and pays a 🍪 to both guesser and describer. Needs privacy mode disabled (see setup). |
+| `/taboo` | The bot whispers you a secret phrase (e.g. "I hate you"); make the chat guess it **without using any of its key words** (stopwords like "but"/"no" are allowed in clues), in at most 3 clue messages. The bot referees automatically: it counts your clues, catches forbidden words, detects correct guesses, and pays a 🍪 to both guesser and describer. Needs privacy mode disabled (see setup). |
 | `/roleplay` | Generates a random scenario and assigns random roles to up to 4 chat members to act out |
 | `/spicymode on\|off` | Chat admins only: unlock Spicy🌶️ (flirty, adults-only) prompt pools for /truthordare, /wouldyourather and /roleplay in this chat. All spicy prompts are about members of *this chat* — many inject a random member's name — never outside crushes/partners. |
 | `/cookie @user` | Award a cookie (also works as a reply to someone's message) |
