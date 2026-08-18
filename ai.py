@@ -59,8 +59,15 @@ CATEGORY_INSTRUCTIONS = {
         "enough that there's no wriggle room."
     ),
     "wyr": (
-        "Write one 'Would you rather' dilemma where both options are genuinely "
-        "hard to pick between. No obvious right answer."
+        "Write one 'Would you rather' dilemma. What makes a good one: both "
+        "options carry a real, concrete cost — if a reasonable person answers "
+        "instantly, it's a bad dilemma. Specificity is everything: 'reply to "
+        "every text within ten seconds, forever' beats 'be fast at texting'. "
+        "Under 30 words. Rotate flavors between rounds: petty everyday "
+        "inconveniences with permanent stakes, revealing personal trade-offs "
+        "(comfort vs pride, honesty vs peace), and absurd-but-consequential. "
+        "Banned clichés: horse-sized duck, teleport-but-naked, know how vs "
+        "when you die, and anything else from a top-10 icebreaker listicle."
     ),
     "paranoia": (
         "Write one Paranoia question — it will be shown secretly to one player, "
@@ -69,6 +76,14 @@ CATEGORY_INSTRUCTIONS = {
         "yes/no question about the named subject. The fun is that the answer is "
         "intriguing without the question. Hard limit: 150 characters (it's shown "
         "in a small popup)."
+    ),
+    "taboo": (
+        "Invent ONE secret phrase for a Taboo round: a short, instantly "
+        "recognizable everyday phrase, idiom, or pop-culture expression of "
+        "2-4 words that a friend could plausibly guess from clues (e.g. "
+        "'spill the beans', 'left on read', 'midnight snack'). Nothing "
+        "obscure, no proper nouns. Output ONLY the phrase, lowercase, no "
+        "quotes or punctuation."
     ),
     "dailyq": (
         "Write one 'daily question' for the chat's question-of-the-day ritual — "

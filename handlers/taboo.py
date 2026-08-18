@@ -19,6 +19,7 @@ import random
 import re
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.constants import ChatAction
 from telegram.ext import (
     CallbackQueryHandler,
     CommandHandler,
@@ -27,9 +28,10 @@ from telegram.ext import (
     filters,
 )
 
+import ai
 import db
 import prompts
-from .common import GROUP_TYPES, require_group
+from .common import GROUP_TYPES, is_duo_chat, require_group
 
 MAX_CLUES = 3
 
@@ -64,7 +66,24 @@ async def start_taboo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     describer = update.effective_user
-    phrase = random.choice(prompts.TABOO_PHRASES)
+    spicy = db.is_spicy(chat_id)
+    phrase = None
+    if ai.ENABLED:
+        await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+        raw = await ai.generate(
+            "taboo", chat_id, duo=await is_duo_chat(update, context),
+            spicy=spicy, user_name=describer.first_name,
+        )
+        if raw:
+            raw = raw.strip().strip('"“”.').lower()
+            # only accept a sane, playable phrase; otherwise use the bank
+            if 2 <= len(_words(raw)) <= 5 and len(raw) <= 40:
+                phrase = raw
+    if phrase is None:
+        bank = list(prompts.TABOO_PHRASES)
+        if spicy:
+            bank += prompts.TABOO_PHRASES_SPICY
+        phrase = random.choice(bank)
     round_id = db.create_taboo(chat_id, describer.id, describer.first_name, phrase)
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("👀 View my secret phrase", callback_data=f"tb:{round_id}:v")],
