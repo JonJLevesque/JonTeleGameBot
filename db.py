@@ -95,6 +95,26 @@ def init(path: str) -> None:
             state   TEXT NOT NULL              -- JSON blob owned by handlers/beautiful.py
         );
 
+        CREATE TABLE IF NOT EXISTS cookie_log (
+            chat_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            delta   INTEGER NOT NULL,
+            reason  TEXT,
+            ts      TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS shop_items (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER NOT NULL,
+            price   INTEGER NOT NULL,
+            reward  TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS recap_chats (
+            chat_id        INTEGER PRIMARY KEY,
+            last_beautiful INTEGER NOT NULL DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS wordle_days (
             day    TEXT PRIMARY KEY,              -- ISO date
             number INTEGER NOT NULL,              -- public puzzle number
@@ -135,7 +155,15 @@ def init(path: str) -> None:
         );
         """
     )
+    _ensure_column("games", "stake", "INTEGER NOT NULL DEFAULT 0")
     _conn.commit()
+
+
+def _ensure_column(table: str, col: str, decl: str) -> None:
+    """Tiny migration helper: add a column if an older DB lacks it."""
+    cols = {r["name"] for r in _conn.execute(f"PRAGMA table_info({table})")}
+    if col not in cols:
+        _conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
 
 
 def _db() -> sqlite3.Connection:
@@ -182,15 +210,30 @@ def random_known_users(chat_id: int, exclude_ids: tuple[int, ...], limit: int):
 
 # -------------------------------------------------------------------- cookies
 
-def add_cookies(chat_id: int, user_id: int, delta: int) -> int:
-    """Adjust a balance and return the new total."""
+def add_cookies(chat_id: int, user_id: int, delta: int, reason: str = "") -> int:
+    """Adjust a balance (logged for weekly recaps) and return the new total."""
     with _db() as c:
         c.execute(
             "INSERT INTO cookies (chat_id, user_id, count) VALUES (?, ?, ?) "
             "ON CONFLICT (chat_id, user_id) DO UPDATE SET count = count + ?",
             (chat_id, user_id, delta, delta),
         )
+        c.execute(
+            "INSERT INTO cookie_log (chat_id, user_id, delta, reason) "
+            "VALUES (?, ?, ?, ?)",
+            (chat_id, user_id, delta, reason),
+        )
     return get_cookies(chat_id, user_id)
+
+
+def cookie_deltas_since(chat_id: int, since_ts: str):
+    """[(user_id, net_delta)] since an ISO timestamp, biggest movers first."""
+    rows = _db().execute(
+        "SELECT user_id, SUM(delta) AS d FROM cookie_log "
+        "WHERE chat_id = ? AND ts >= ? GROUP BY user_id ORDER BY d DESC",
+        (chat_id, since_ts),
+    ).fetchall()
+    return [(r["user_id"], r["d"]) for r in rows]
 
 
 def get_cookies(chat_id: int, user_id: int) -> int:
@@ -213,16 +256,59 @@ def cookie_leaderboard(chat_id: int, limit: int = 10):
     return [(r["first_name"], r["count"]) for r in rows]
 
 
-# ---------------------------------------------------------------- board games
+# ----------------------------------------------------------------- IOU shop
 
-def create_game(chat_id, game_type, p0_id, p0_name, p1_id, p1_name) -> int:
+def shop_add(chat_id: int, price: int, reward: str) -> int:
     with _db() as c:
         cur = c.execute(
-            "INSERT INTO games (chat_id, game_type, p0_id, p0_name, p1_id, p1_name) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (chat_id, game_type, p0_id, p0_name, p1_id, p1_name),
+            "INSERT INTO shop_items (chat_id, price, reward) VALUES (?, ?, ?)",
+            (chat_id, price, reward),
         )
     return cur.lastrowid
+
+
+def shop_list(chat_id: int):
+    return _db().execute(
+        "SELECT * FROM shop_items WHERE chat_id = ? ORDER BY price", (chat_id,)
+    ).fetchall()
+
+
+def shop_get(chat_id: int, item_id: int):
+    return _db().execute(
+        "SELECT * FROM shop_items WHERE chat_id = ? AND id = ?",
+        (chat_id, item_id),
+    ).fetchone()
+
+
+def shop_remove(chat_id: int, item_id: int) -> bool:
+    with _db() as c:
+        cur = c.execute(
+            "DELETE FROM shop_items WHERE chat_id = ? AND id = ?",
+            (chat_id, item_id),
+        )
+    return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------- board games
+
+def create_game(chat_id, game_type, p0_id, p0_name, p1_id, p1_name,
+                stake: int = 0) -> int:
+    with _db() as c:
+        cur = c.execute(
+            "INSERT INTO games (chat_id, game_type, p0_id, p0_name, p1_id, "
+            "p1_name, stake) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, game_type, p0_id, p0_name, p1_id, p1_name, stake),
+        )
+    return cur.lastrowid
+
+
+def finished_games_since(chat_id: int, since_ts: str) -> int:
+    row = _db().execute(
+        "SELECT COUNT(*) AS n FROM games WHERE chat_id = ? "
+        "AND status = 'finished' AND updated_at >= ? AND state IS NOT NULL",
+        (chat_id, since_ts),
+    ).fetchone()
+    return row["n"]
 
 
 def set_game_message(game_id: int, message_id: int) -> None:
