@@ -1,6 +1,6 @@
 from . import (
-    beautiful, boardgames, cookies, dailyq, help, party, recap, roleplay,
-    shop, taboo, wordle,
+    beautiful, boardgames, cookies, dailyq, geo, help, party, recap,
+    roleplay, settle, shop, taboo, tournament, wordle,
 )
 from .common import track_users
 
@@ -20,6 +20,9 @@ def all_handlers():
         + dailyq.get_handlers()
         + shop.get_handlers()
         + recap.get_handlers()
+        + settle.get_handlers()
+        + geo.get_handlers()
+        + tournament.get_handlers()
     )
 
 

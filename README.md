@@ -38,7 +38,16 @@ Two features worth knowing up front:
 | `/beautiful [status\|reset]` | **World's Most Beautiful Place** — ~2000 famous places (from Wikidata/Wikimedia Commons, built by `scripts/fetch_places.py`) enter a single-elimination photo knockout. Each `/beautiful` posts one head-to-head: two photos + 🅰️/🅱️ buttons. The matchup waits until **two different people** vote: 2–0 advances the winner; 1–1 lets both survive into the next round (in the final: one rematch, then a coin flip). The bracket is saved per chat and can idle for weeks — summon the next matchup whenever. Rebuilding `places.json` mid-tournament scrambles photo ids, so `/beautiful reset` after a rebuild. |
 | `/wordle` | **Competitive daily Wordle** — the bot fetches the real NYT word of the day (public endpoint, local fallback list), each player plays privately in a DM with the bot, and finished boards (squares only) auto-post to shared group chats. When a second chat member finishes, the bot announces the head-to-head: fewer guesses wins +1 🍪. `/wordle` in the group shows standings, duel wins, streaks and averages. |
 | `/dailyq on [HH:MM]\|now\|off` | **Daily question ritual** — one question per day (default 20:00), walking an escalating "36 questions"-style arc: warm-up → personal → about-the-two-of-you → deep (plus a steamy tier when `/spicymode` is on). Past the scripted arc, questions are AI-generated at the deepest stage when `ANTHROPIC_API_KEY` is set. Schedule and arc position survive restarts. |
+| `/tournament Title: a, b, c` | Knockout bracket for **any list** (movies, date ideas…) — same two-vote engine as `/beautiful` (shared `handlers/bracket.py`). `reset` wipes it. |
+| `/whereami` | Geo-guessing round from the places pool: mystery photo, four country buttons, reveal after two guesses, correct = 🍪. |
+| `/settle <argument>` | The bot's supreme court rules on any dispute — decisively, with a roast (AI-judged; coin-flip verdict without a key). Reply to a message with `/settle` to enter it into evidence. |
+| `/shop`, `/redeem <id>` | IOU shop: the chat defines real-world rewards (`/shop add 50 loser cooks dinner`), bought with cookies. All cookie movement is logged. |
+| `/recap on\|now\|off` | Sunday 19:00 weekly scoreboard: Wordle duels/streaks, cookie movement, bracket progress, games played. |
 | `/help` | List all commands |
+
+**Wagers:** any board-game challenge takes an optional stake — `/chess @rival 10`. Stakes are escrowed when the challenge is accepted; winner takes the pot, draws refund. Boards have a two-tap 🏳️ Resign and a 🔄 Rematch button.
+
+**Ops:** `scripts/install_launchd.sh` installs the bot as a macOS launchd agent (auto-start, auto-restart, logs in `~/Library/Logs/partybot/`). Nightly SQLite backups land in `backups/` (kept out of git). Crashes are DM'd to `BOT_ADMIN_ID`. `scripts/announce_update.sh <chat_id> "line"…` posts a changelog to the chat as the bot.
 
 Board games use a challenge → accept/decline flow (the challenger can cancel a
 hanging challenge via the Decline button), then play entirely through inline

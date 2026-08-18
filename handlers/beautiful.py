@@ -50,53 +50,14 @@ def _esc_label(pid: int) -> str:
 
 
 # ------------------------------------------------------------ bracket logic
+# The generic engine lives in bracket.py (shared with /tournament); state
+# shape is unchanged, so live tournaments survive this refactor.
+
+from .bracket import new_bracket, remaining as _remaining, start_next_match as _start_next_match
+
 
 def _new_state() -> dict:
-    ids = list(range(len(places())))
-    random.shuffle(ids)
-    return {
-        "round": 1,
-        "queue": ids,        # unpaired ids left in the current round
-        "advancers": [],     # already through to the next round
-        "match": None,       # {"no", "a", "b", "votes": {uid: [choice, name]}}
-        "match_no": 0,
-        "final_draws": 0,
-        "champion": None,
-        "total": len(ids),
-    }
-
-
-def _remaining(state: dict) -> int:
-    return (
-        len(state["queue"])
-        + len(state["advancers"])
-        + (2 if state["match"] else 0)
-        + (1 if state["champion"] is not None else 0)
-    )
-
-
-def _start_next_match(state: dict) -> tuple[dict | None, bool]:
-    """Pair the next two contenders, rolling into a new round (or crowning a
-    champion) when the current one is exhausted. Returns (match, new_round);
-    match is None when a champion was just crowned."""
-    new_round = False
-    while True:
-        q = state["queue"]
-        if len(q) >= 2:
-            a, b = q.pop(), q.pop()
-            state["match_no"] += 1
-            state["match"] = {"no": state["match_no"], "a": a, "b": b, "votes": {}}
-            return state["match"], new_round
-        if q:  # odd one out gets a bye
-            state["advancers"].append(q.pop())
-        if len(state["advancers"]) <= 1:
-            state["champion"] = state["advancers"][0] if state["advancers"] else None
-            state["advancers"] = []
-            return None, False
-        random.shuffle(state["advancers"])
-        state["queue"], state["advancers"] = state["advancers"], []
-        state["round"] += 1
-        new_round = True
+    return new_bracket(range(len(places())))
 
 
 # -------------------------------------------------------------- presentation

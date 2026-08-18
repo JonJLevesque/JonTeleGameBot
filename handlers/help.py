@@ -17,22 +17,31 @@ HELP_TEXT = """\
 /cookie @user — award a cookie (or reply to their message with /cookie)
 /cookies [@user] — check a cookie balance (yours by default)
 /cookieboard — top cookie holders in this chat
+/shop — the IOU shop: add real-world rewards, buy them with cookies
+/redeem id — cash cookies in for a reward (it goes on the record)
 
-<b>Board games</b> (challenge with @user, by replying, or open to anyone)
+<b>Board games</b> (challenge with @user, by replying, or open to anyone;
+add a number to wager cookies: /chess @rival 10 — winner takes the pot)
 /tictactoe [@user] — Tic-Tac-Toe ❌⭕
 /reversi [@user] — Reversi/Othello ⚫⚪
 /checkers [@user] — Checkers 🔴⚪
 /chess [@user] — Chess ♔♚ (castling, en passant, the lot)
+Every board has 🏳️ Resign; finished boards offer a 🔄 Rematch.
 
-<b>World's Most Beautiful Place</b> 🌍
+<b>Tournaments &amp; trivia</b> 🌍
 /beautiful — next head-to-head: 2000 places, two photos, you both vote;
 winners advance until one place rules the world (status | reset)
+/tournament Title: a, b, c — knockout bracket for ANY list (movies,
+date ideas, baby names…), same two-vote rules
+/whereami — mystery photo, guess the country, correct = 🍪
+/settle the argument — the court rules, decisively (or reply with /settle)
 
 <b>Daily rituals</b>
 /wordle — the real NYT Wordle: I DM you the puzzle (or tap the Play
 button), results auto-post to the group, fastest solver wins the day's 🍪
 /dailyq on|now|off — one question a day for you both, and they get deeper
 (and, with spicy mode, steamier) as the days go
+/recap on|now|off — Sunday-evening scoreboard of the week
 
 <b>Other</b>
 /help — this message
@@ -58,6 +67,12 @@ COMMAND_LIST = [
     ("beautiful", "World's Most Beautiful Place photo knockout"),
     ("wordle", "Daily NYT Wordle duel (DM me to play)"),
     ("dailyq", "Daily question ritual (on|now|off)"),
+    ("tournament", "Knockout bracket for any list"),
+    ("whereami", "Guess the country from a photo"),
+    ("settle", "The court rules on your argument"),
+    ("shop", "IOU shop: cookies for real rewards"),
+    ("redeem", "Buy a shop reward with cookies"),
+    ("recap", "Weekly Sunday scoreboard (on|now|off)"),
     ("help", "List all commands"),
 ]
 

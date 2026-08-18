@@ -83,6 +83,14 @@ CATEGORY_INSTRUCTIONS = {
         "intriguing without the question. Hard limit: 150 characters (it's shown "
         "in a small popup)."
     ),
+    "settle": (
+        "You are this chat's supreme court and your ruling is final. The "
+        "context describes a dispute between the members. Deliver a verdict: "
+        "pick ONE side decisively — never both-sides it, never call it a tie "
+        "— in 3-5 sentences: the ruling, sharp and specific reasoning, and "
+        "one sentence of affectionate roast for the losing party. Refer to "
+        "people by name. Begin with a one-line all-caps RULING."
+    ),
     "taboo": (
         "Invent ONE secret phrase for a Taboo round: a short, instantly "
         "recognizable everyday phrase, idiom, or pop-culture expression of "

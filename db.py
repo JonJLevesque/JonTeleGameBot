@@ -95,6 +95,11 @@ def init(path: str) -> None:
             state   TEXT NOT NULL              -- JSON blob owned by handlers/beautiful.py
         );
 
+        CREATE TABLE IF NOT EXISTS tournaments (
+            chat_id INTEGER PRIMARY KEY,
+            state   TEXT NOT NULL              -- JSON blob owned by handlers/tournament.py
+        );
+
         CREATE TABLE IF NOT EXISTS cookie_log (
             chat_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
@@ -417,6 +422,29 @@ def save_beautiful(chat_id: int, state: dict) -> None:
 def clear_beautiful(chat_id: int) -> None:
     with _db() as c:
         c.execute("DELETE FROM beautiful WHERE chat_id = ?", (chat_id,))
+
+
+# ----------------------------------------------------- custom tournaments
+
+def get_tournament(chat_id: int) -> dict | None:
+    row = _db().execute(
+        "SELECT state FROM tournaments WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return json.loads(row["state"]) if row else None
+
+
+def save_tournament(chat_id: int, state: dict) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO tournaments (chat_id, state) VALUES (?, ?) "
+            "ON CONFLICT (chat_id) DO UPDATE SET state = excluded.state",
+            (chat_id, json.dumps(state)),
+        )
+
+
+def clear_tournament(chat_id: int) -> None:
+    with _db() as c:
+        c.execute("DELETE FROM tournaments WHERE chat_id = ?", (chat_id,))
 
 
 # --------------------------------------------------------------------- wordle

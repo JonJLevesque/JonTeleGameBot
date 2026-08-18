@@ -14,7 +14,7 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 import db
 from .common import LOCAL_TZ, require_group
-from .beautiful import _remaining as beautiful_remaining
+from .bracket import remaining as beautiful_remaining
 from .wordle import _streak as wordle_streak
 
 log = logging.getLogger("partybot.recap")
