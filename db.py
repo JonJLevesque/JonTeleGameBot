@@ -496,6 +496,56 @@ def wordle_duel_wins(chat_id: int, user_id: int) -> int:
     return row["n"]
 
 
+def wordle_duel_wins_since(chat_id: int, user_id: int, since_day: str) -> int:
+    row = _db().execute(
+        "SELECT COUNT(*) AS n FROM wordle_duels "
+        "WHERE chat_id = ? AND winner_id = ? AND day >= ?",
+        (chat_id, user_id, since_day),
+    ).fetchone()
+    return row["n"]
+
+
+def chats_with_min_members(n: int = 2) -> list[int]:
+    rows = _db().execute(
+        "SELECT chat_id FROM known_users GROUP BY chat_id "
+        "HAVING COUNT(*) >= ?", (n,),
+    ).fetchall()
+    return [r["chat_id"] for r in rows]
+
+
+# -------------------------------------------------------------- weekly recap
+
+def recap_on(chat_id: int) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT OR IGNORE INTO recap_chats (chat_id) VALUES (?)", (chat_id,)
+        )
+
+
+def recap_off(chat_id: int) -> None:
+    with _db() as c:
+        c.execute("DELETE FROM recap_chats WHERE chat_id = ?", (chat_id,))
+
+
+def recap_all() -> list[int]:
+    return [r["chat_id"] for r in _db().execute("SELECT chat_id FROM recap_chats")]
+
+
+def recap_snapshot(chat_id: int) -> int | None:
+    row = _db().execute(
+        "SELECT last_beautiful FROM recap_chats WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return row["last_beautiful"] if row else None
+
+
+def recap_update_snapshot(chat_id: int, match_no: int) -> None:
+    with _db() as c:
+        c.execute(
+            "UPDATE recap_chats SET last_beautiful = ? WHERE chat_id = ?",
+            (match_no, chat_id),
+        )
+
+
 def chats_for_user(user_id: int) -> list[int]:
     rows = _db().execute(
         "SELECT chat_id FROM known_users WHERE user_id = ?", (user_id,)

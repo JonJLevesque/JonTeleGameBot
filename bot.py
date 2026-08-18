@@ -13,7 +13,8 @@ from telegram.ext import Application, ContextTypes, TypeHandler
 
 import config
 import db
-from handlers import all_handlers, dailyq, track_users
+from handlers import all_handlers, dailyq, recap, track_users
+from handlers import wordle as wordle_handlers
 from handlers.common import LOCAL_TZ
 from handlers.help import COMMAND_LIST
 
@@ -52,6 +53,8 @@ async def _post_init(app: Application):
         [BotCommand(cmd, desc) for cmd, desc in COMMAND_LIST]
     )
     dailyq.restore_jobs(app)
+    recap.schedule(app)
+    wordle_handlers.schedule_nudge(app)
     app.job_queue.run_daily(
         _backup_job, time(3, 30, tzinfo=LOCAL_TZ), name="db-backup"
     )

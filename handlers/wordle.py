@@ -16,7 +16,7 @@ same puzzle as the rest of the world — but inside Telegram:
 import json
 import logging
 from collections import Counter
-from datetime import date, timedelta
+from datetime import date, time as dtime, timedelta
 from pathlib import Path
 
 import httpx
@@ -25,7 +25,7 @@ from telegram.error import TelegramError
 from telegram.ext import CommandHandler, ContextTypes, MessageHandler, filters
 
 import db
-from .common import GROUP_TYPES
+from .common import GROUP_TYPES, LOCAL_TZ
 
 log = logging.getLogger("partybot.wordle")
 
@@ -311,6 +311,36 @@ async def guess_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _announce_finish(
             context, user.id, user.first_name, day, number, guesses, won, word
         )
+
+
+async def _nudge_job(context: ContextTypes.DEFAULT_TYPE):
+    """Evening reminder in chats where someone played but someone hasn't."""
+    day = date.today().isoformat()
+    for chat_id in db.chats_with_min_members(2):
+        finishers = {p["user_id"] for p in db.wordle_finishers(chat_id, day)}
+        if not finishers:
+            continue  # nobody played here today: stay quiet
+        members = db.chat_members(chat_id)
+        done = [m["first_name"] for m in members if m["user_id"] in finishers]
+        missing = [m["first_name"] for m in members
+                   if m["user_id"] not in finishers]
+        if not missing:
+            continue
+        try:
+            await context.bot.send_message(
+                chat_id,
+                f"⏰ Wordle check! {', '.join(done)} finished today's puzzle "
+                f"but {', '.join(missing)} hasn't played yet — "
+                f"the day's 🍪 is still up for grabs. /wordle",
+            )
+        except TelegramError:
+            continue
+
+
+def schedule_nudge(app) -> None:
+    app.job_queue.run_daily(
+        _nudge_job, dtime(20, 30, tzinfo=LOCAL_TZ), name="wordle-nudge"
+    )
 
 
 def get_handlers():
