@@ -10,12 +10,17 @@ import chess
 
 from .base import NOOP, TwoPlayerBoardGame
 
+# Chess glyphs render in the keyboard's TEXT color, not black/white: on a
+# dark theme the "filled" set (♚♛♜…) comes out solid bright — bold and
+# white-looking — while the "outline" set (♔♕♖…) stays hollow. So White
+# gets the filled set and Black the outline set; that reads correctly (and
+# much bolder) on the dark themes this chat uses.
 _GLYPHS = {
-    "P": "♙", "N": "♘", "B": "♗", "R": "♖", "Q": "♕", "K": "♔",
-    "p": "♟", "n": "♞", "b": "♝", "r": "♜", "q": "♛", "k": "♚",
+    "P": "♟", "N": "♞", "B": "♝", "R": "♜", "Q": "♛", "K": "♚",
+    "p": "♙", "n": "♘", "b": "♗", "r": "♖", "q": "♕", "k": "♔",
 }
 _PROMO = {"q": chess.QUEEN, "r": chess.ROOK, "b": chess.BISHOP, "n": chess.KNIGHT}
-_PROMO_ROW = {True: "♕♖♗♘", False: "♛♜♝♞"}  # keyed by chess.WHITE / BLACK
+_PROMO_ROW = {True: "♛♜♝♞", False: "♕♖♗♘"}  # keyed by chess.WHITE / BLACK
 
 
 def _sq(r: int, c: int) -> int:
@@ -26,7 +31,7 @@ def _sq(r: int, c: int) -> int:
 class ChessGame(TwoPlayerBoardGame):
     code = "chess"
     name = "Chess"
-    symbols = ("♔", "♚")
+    symbols = ("♚", "♔")  # player 0 = White = bold filled glyph (see _GLYPHS)
 
     @classmethod
     def new_state(cls) -> dict:
