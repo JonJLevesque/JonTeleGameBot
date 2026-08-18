@@ -12,34 +12,38 @@ Banks come in three flavors per category, assembled by pool():
                the one other person
 """
 
+# Truths are always about the OTHER person ({subject}: a random other member
+# in groups, the partner in duo chats) — never a solo self-inventory question.
+# A few subjectless-but-other-directed ones remain for cold starts where the
+# bot doesn't know any other members yet.
 TRUTHS = [
-    "What's the most embarrassing thing you've ever said to someone in this chat?",
-    "What's a secret talent nobody in this chat knows about?",
-    "What's the longest you've gone without showering?",
-    "What's the most childish thing you still do?",
-    "Have you ever pretended to be sick to skip something? What was it?",
-    "What's the worst gift you've ever received, and did you pretend to like it?",
-    "What's your most-used emoji and what does that say about you?",
-    "What's the last lie you told?",
-    "What's the weirdest thing you've ever eaten?",
-    "What's a movie you pretend to have seen?",
-    "What's the most money you've spent on something completely useless?",
-    "What's your guilty-pleasure song?",
-    "What's the pettiest thing you've ever done?",
-    "What's a food opinion you have that everyone disagrees with?",
-    "What's the worst haircut you've ever had?",
-    "What app on your phone would you be embarrassed to show your screen time for?",
-    "What's something you believed way too long as a kid?",
-    "Have you ever sent a text to the wrong person? What did it say?",
-    "What's your worst kitchen disaster?",
-    "What's the cringiest phase you've ever gone through?",
-    "If your search history from last week were read aloud, what would be the worst entry?",
-    "What's the strangest dream you remember?",
-    "What's one thing you'd change about your personality if you could?",
-    "What's the longest you've kept a piece of clothing without washing it?",
-    "Have you ever laughed at something you really shouldn't have? What was it?",
-    "What's your most irrational fear?",
     "What's one opinion of {subject}'s that you secretly disagree with?",
+    "What's something {subject} does better than they realize?",
+    "When was the last time {subject} hurt your feelings without knowing it?",
+    "What do you envy about {subject}? Real answer.",
+    "What's a conversation you keep meaning to have with {subject} but haven't?",
+    "What's the closest you and {subject} ever came to actually falling out?",
+    "What's something you've never properly thanked {subject} for?",
+    "What part of {subject}'s life do you secretly wish you had?",
+    "What's a side of {subject} you think nobody else gets to see?",
+    "When were you most proud of {subject}? Be specific.",
+    "What's one thing {subject} believes about you that isn't true?",
+    "If {subject} could hear one hard truth from you with zero consequences, what would it be?",
+    "What's the most {subject} thing {subject} has ever done?",
+    "When did {subject} change your mind about something that mattered?",
+    "What worry do you have about {subject} that you've never said out loud?",
+    "What's a moment {subject} showed up for you that you still think about?",
+    "If you and {subject} ever stopped talking, what would you miss first?",
+    "What's something {subject} said ages ago that you still think about?",
+    "What advice would you give {subject} if you knew they couldn't get offended?",
+    "If you had one wish to spend on {subject}'s life, what would you fix or give them?",
+    "How has {subject} changed since you first met them?",
+    "Which of {subject}'s habits have you caught yourself copying?",
+    "What's the hardest thing you've ever had to tell someone you love?",
+    "Who in your life do you owe an apology to, and for what?",
+    "Who was your last 3am 'I need to talk' call, and what was it about?",
+    "What's the nicest thing anyone in this chat has done for you?",
+    "Who was the last person you couldn't stop thinking about, and why?",
 ]
 
 TRUTHS_GROUP = [
@@ -55,6 +59,16 @@ TRUTHS_DUO = [
     "When was the last time {subject} genuinely surprised you?",
     "What were you doing the last time you thought 'I should text {subject}'?",
     "What did you think of {subject} the very first time you met?",
+    "What's something about {subject} you hope never changes?",
+    "What's one thing you've never told {subject} because the moment never felt right? The moment is now.",
+    "When was the last time {subject} made you feel genuinely seen?",
+    "What do you and {subject} both pretend not to notice about each other?",
+    "If {subject} moved across the world tomorrow, what would you say tonight?",
+    "What's a small thing {subject} did that permanently changed how you saw them?",
+    "Which of {subject}'s flaws have you fully made peace with — and which one still gets you?",
+    "What has {subject} taught you about yourself?",
+    "What's the biggest thing you've done for {subject} that they still don't know about?",
+    "When do you feel closest to {subject}?",
 ]
 
 DARES = [

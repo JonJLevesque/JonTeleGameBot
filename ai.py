@@ -49,9 +49,15 @@ picture, DM to a chat member. Nothing requiring people to be in the same room.
 
 CATEGORY_INSTRUCTIONS = {
     "truth": (
-        "Write one truth question. It should be genuinely revealing or genuinely "
-        "funny — a question people actually want to hear answered, not therapy "
-        "boilerplate like 'what's your biggest fear'."
+        "Write one truth question. HARD RULE: the question must be about the "
+        "OTHER person named in the context — how the answerer really sees "
+        "them, a specific memory between them, something they've never said "
+        "to them — never a solo self-inventory question (worst haircut, "
+        "guilty pleasure, biggest fear). The answer must reveal something "
+        "about how the answerer feels about the other person. Go deep: "
+        "specific moments over generalities, the question should be slightly "
+        "hard to answer with the other person watching. Funny is allowed; "
+        "vulnerable is the goal."
     ),
     "dare": (
         "Write one dare, executable entirely inside Telegram. It should be "
