@@ -85,12 +85,13 @@ async def redeem_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     total = db.add_cookies(chat_id, user.id, -item["price"],
                            f"redeemed: {item['reward']}")
+    safe_name = html.escape(user.first_name)
     await msg.reply_html(
-        f"🧾 <b>REDEEMED!</b> {user.first_name} cashed in "
+        f"🧾 <b>REDEEMED!</b> {safe_name} cashed in "
         f"<b>{item['price']} 🍪</b> for:\n"
         f"✨ <b>{html.escape(item['reward'])}</b> ✨\n"
         f"This debt is now officially on the record. "
-        f"({user.first_name}: {total} 🍪 left)"
+        f"({safe_name}: {total} 🍪 left)"
     )
 
 

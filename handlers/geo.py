@@ -31,7 +31,8 @@ def _new_round():
 async def whereami(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await require_group(update):
         return
-    if len(places()) < 8:
+    distinct = {p["country"] for p in places() if p["country"]}
+    if len(distinct) < 4:
         await update.effective_message.reply_text(
             "The photo pool is missing — run scripts/fetch_places.py first."
         )

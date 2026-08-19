@@ -10,8 +10,10 @@ each matchup waits for two different voters; 2-0 advances, 1-1 lets both
 live to fight again, and a deadlocked final gets one rematch then a coin.
 One custom tournament per chat, persisted in SQLite.
 """
+import asyncio
 import html
 import random
+from collections import defaultdict
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.constants import ParseMode
@@ -23,6 +25,7 @@ from .bracket import new_bracket, remaining, start_next_match
 from .common import require_group
 
 MAX_ITEMS = 128
+_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)  # per-chat vote lock
 
 
 def _name(state: dict, item_id: int) -> str:
@@ -36,11 +39,12 @@ def _btn_label(state: dict, item_id: int) -> str:
 
 def _keyboard(state: dict) -> InlineKeyboardMarkup:
     m = state["match"]
+    nonce = state.get("nonce", 0)
     return InlineKeyboardMarkup([[
         InlineKeyboardButton(f"🅰️ {_btn_label(state, m['a'])}",
-                             callback_data=f"tny:{m['no']}:a"),
+                             callback_data=f"tny:{nonce}:{m['no']}:a"),
         InlineKeyboardButton(f"🅱️ {_btn_label(state, m['b'])}",
-                             callback_data=f"tny:{m['no']}:b"),
+                             callback_data=f"tny:{nonce}:{m['no']}:b"),
     ]])
 
 
@@ -165,10 +169,20 @@ async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer()
         return
     chat_id = q.message.chat.id
-    _, match_no, choice = q.data.split(":")
+    async with _locks[chat_id]:
+        await _vote_locked(q, chat_id)
+
+
+async def _vote_locked(q, chat_id: int):
+    parts = q.data.split(":")
+    if len(parts) == 4:
+        nonce, match_no, choice = int(parts[1]), int(parts[2]), parts[3]
+    else:  # buttons from before nonces existed
+        nonce, match_no, choice = None, int(parts[1]), parts[2]
     state = db.get_tournament(chat_id)
     m = state["match"] if state else None
-    if not m or m["no"] != int(match_no):
+    if (not m or m["no"] != match_no
+            or (nonce is not None and nonce != state.get("nonce", 0))):
         await q.answer("This matchup is already decided.")
         return
 

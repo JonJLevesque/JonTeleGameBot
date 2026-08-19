@@ -9,6 +9,7 @@ working across bot restarts, and any number of games can run at once —
 a per-game asyncio lock serializes concurrent taps on the same board.
 """
 import asyncio
+import html
 import json
 from collections import defaultdict
 
@@ -45,7 +46,8 @@ def _markup(cls, state, game_id: int, frozen: bool = False) -> InlineKeyboardMar
 def _header(cls, game) -> str:
     text = (
         f"🎮 <b>{cls.name}</b>\n"
-        f"{cls.symbols[0]} {game['p0_name']} vs {cls.symbols[1]} {game['p1_name']}"
+        f"{cls.symbols[0]} {html.escape(game['p0_name'])} vs "
+        f"{cls.symbols[1]} {html.escape(game['p1_name'] or '?')}"
     )
     if game["stake"]:
         text += f"\n💰 Pot: {game['stake'] * 2} 🍪"
@@ -90,7 +92,7 @@ def _make_start_handler(code: str):
             )
             return
         stake = next(
-            (int(a) for a in (context.args or []) if a.isdigit()), 0
+            (int(a) for a in (context.args or []) if a.isdecimal()), 0
         )
         if stake:
             have = db.get_cookies(update.effective_chat.id, challenger.id)
@@ -104,16 +106,17 @@ def _make_start_handler(code: str):
             update.effective_chat.id, code, challenger.id, challenger.first_name,
             opp_id, opp_name, stake=stake,
         )
-        who = f"<b>{opp_name}</b>" if opp_id else "anyone brave enough"
+        who = f"<b>{html.escape(opp_name)}</b>" if opp_id else "anyone brave enough"
         wager = f"\n💰 Stake: {stake} 🍪 each — winner takes all!" if stake else ""
         keyboard = InlineKeyboardMarkup([[
             InlineKeyboardButton("✅ Accept", callback_data=f"bg:{game_id}:a"),
             InlineKeyboardButton("❌ Decline", callback_data=f"bg:{game_id}:d"),
         ]])
+        challenger_name = html.escape(challenger.first_name)
         msg = await update.effective_message.reply_html(
             f"🎮 <b>{cls.name}</b>\n"
-            f"<b>{challenger.first_name}</b> challenges {who}!{wager}\n"
-            f"({challenger.first_name} can tap Decline to cancel.)",
+            f"<b>{challenger_name}</b> challenges {who}!{wager}\n"
+            f"({challenger_name} can tap Decline to cancel.)",
             reply_markup=keyboard,
         )
         db.set_game_message(game_id, msg.message_id)
@@ -132,22 +135,14 @@ async def _handle_pending(query, game, cls, payload):
         if not open_challenge and user.id != game["p1_id"]:
             await query.answer(f"This challenge is for {game['p1_name']}.")
             return
-        stake = game["stake"]
-        if stake:
-            # Escrow both stakes now; the pot pays out when the game ends.
-            for uid, name in ((game["p0_id"], game["p0_name"]),
-                              (user.id, user.first_name)):
-                if db.get_cookies(game["chat_id"], uid) < stake:
-                    await query.answer(
-                        f"{name} doesn't have {stake} 🍪 anymore — "
-                        f"the wager can't be covered.", show_alert=True)
-                    return
-            db.add_cookies(game["chat_id"], game["p0_id"], -stake, "wager escrow")
-            db.add_cookies(game["chat_id"], user.id, -stake, "wager escrow")
-        db.update_game(
-            game["id"], status="active", state=cls.new_state(),
-            p1_id=user.id, p1_name=user.first_name,
-        )
+        # Escrow both stakes and activate in one transaction; the pot pays
+        # out when the game ends.
+        if not db.escrow_and_activate(game, user.id, user.first_name,
+                                      cls.new_state()):
+            await query.answer(
+                f"One of you no longer has the {game['stake']} 🍪 stake — "
+                f"the wager can't be covered.", show_alert=True)
+            return
         game = db.get_game(game["id"])
         state = json.loads(game["state"])
         await query.answer("Game on!")
@@ -159,8 +154,13 @@ async def _handle_pending(query, game, cls, payload):
     elif payload == "d":
         if user.id == game["p0_id"]:
             text = f"🎮 {cls.name}: challenge cancelled by {game['p0_name']}."
-        elif open_challenge or user.id == game["p1_id"]:
+        elif not open_challenge and user.id == game["p1_id"]:
             text = f"🎮 {cls.name}: {user.first_name} declined the challenge."
+        elif open_challenge:
+            await query.answer(
+                f"Anyone can Accept — only {game['p0_name']} can cancel this."
+            )
+            return
         else:
             await query.answer(f"This challenge is for {game['p1_name']}.")
             return
@@ -189,7 +189,7 @@ async def _handle_move(query, game, cls, payload):
         return
     state.pop("_rz", None)  # a real move cancels a pending resign confirmation
 
-    names = (game["p0_name"], game["p1_name"])
+    names = (html.escape(game["p0_name"]), html.escape(game["p1_name"]))
     result = cls.outcome(state)
     if result is None:
         db.update_game(game["id"], state=state)
@@ -236,7 +236,7 @@ async def _handle_resign(query, game, cls):
         )
         return
     winner = 1 - player
-    names = (game["p0_name"], game["p1_name"])
+    names = (html.escape(game["p0_name"]), html.escape(game["p1_name"]))
     state["sel"] = None
     db.update_game(game["id"], state=state, status="finished")
     verdict = (
@@ -277,7 +277,8 @@ async def _handle_rematch(query, game, cls, context):
     msg = await context.bot.send_message(
         game["chat_id"],
         f"🔄 <b>{cls.name} rematch!</b>\n"
-        f"<b>{user.first_name}</b> challenges <b>{opp_name}</b>!{wager}",
+        f"<b>{html.escape(user.first_name)}</b> challenges "
+        f"<b>{html.escape(opp_name)}</b>!{wager}",
         parse_mode="HTML", reply_markup=keyboard,
     )
     db.set_game_message(game_id, msg.message_id)

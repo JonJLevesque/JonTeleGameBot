@@ -22,8 +22,9 @@ log = logging.getLogger("partybot.recap")
 POST_AT = time(19, 0)
 
 
-def _build(chat_id: int) -> str:
-    since_day = (date.today() - timedelta(days=7)).isoformat()
+def _build(chat_id: int, update_snapshot: bool = False) -> str:
+    # 7 calendar days including today (days=7 would double-count last Sunday)
+    since_day = (date.today() - timedelta(days=6)).isoformat()
     since_ts = (datetime.now(timezone.utc) - timedelta(days=7)).strftime(
         "%Y-%m-%d %H:%M:%S"
     )
@@ -60,13 +61,16 @@ def _build(chat_id: int) -> str:
 
     state = db.get_beautiful(chat_id)
     if state and state.get("champion") is None:
-        played = state["match_no"] - (db.recap_snapshot(chat_id) or 0)
+        snap = db.recap_snapshot(chat_id) or 0
+        # a snapshot larger than match_no means the bracket was reset
+        played = state["match_no"] - (snap if snap <= state["match_no"] else 0)
         lines.append(
             f"\n🌍 <b>Most Beautiful Place</b>: {played} matchup"
             f"{'s' if played != 1 else ''} this week — round {state['round']}, "
             f"{beautiful_remaining(state)} of {state['total']} places left"
         )
-        db.recap_update_snapshot(chat_id, state["match_no"])
+        if update_snapshot:  # only the real Sunday post resets the week
+            db.recap_update_snapshot(chat_id, state["match_no"])
 
     games = db.finished_games_since(chat_id, since_ts)
     if games:
@@ -87,7 +91,7 @@ async def _job(context: ContextTypes.DEFAULT_TYPE):
     for chat_id in db.recap_all():
         try:
             await context.bot.send_message(
-                chat_id, _build(chat_id), parse_mode="HTML"
+                chat_id, _build(chat_id, update_snapshot=True), parse_mode="HTML"
             )
         except TelegramError:
             log.exception("recap failed for chat %s", chat_id)
@@ -115,7 +119,6 @@ async def recap_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.recap_off(chat_id)
         await msg.reply_text("📊 Weekly recap turned off.")
     elif arg == "now":
-        db.recap_on(chat_id)
         await msg.reply_html(_build(chat_id))
     else:
         enrolled = chat_id in db.recap_all()

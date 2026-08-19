@@ -15,6 +15,9 @@ def new_bracket(ids: list[int]) -> dict:
     ids = list(ids)
     random.shuffle(ids)
     return {
+        # nonce ties vote buttons to THIS bracket, so buttons from a
+        # pre-reset bracket can't cast votes in the new one
+        "nonce": random.randrange(1, 1_000_000),
         "round": 1,
         "queue": ids,
         "advancers": [],

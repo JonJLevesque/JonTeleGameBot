@@ -13,6 +13,7 @@ same puzzle as the rest of the world — but inside Telegram:
 
 /wordle in a group shows today's standings and all-time stats.
 """
+import html
 import json
 import logging
 from collections import Counter
@@ -144,8 +145,9 @@ async def _announce_finish(context: ContextTypes.DEFAULT_TYPE, user_id: int,
         try:
             await context.bot.send_message(
                 chat_id,
-                f"🟩 <b>{first_name}</b> finished Wordle #{number:,}: "
-                f"<b>{score}</b>\n{_grid(guesses, word, letters=False)}",
+                f"🟩 <b>{html.escape(first_name)}</b> finished Wordle "
+                f"#{number:,}: <b>{score}</b>\n"
+                f"{_grid(guesses, word, letters=False)}",
                 parse_mode="HTML",
             )
         except TelegramError:
@@ -165,15 +167,16 @@ async def _announce_finish(context: ContextTypes.DEFAULT_TYPE, user_id: int,
             db.save_wordle_duel(chat_id, day, None)
             text = (
                 f"🤝 Dead heat on Wordle #{number:,} — "
-                f"{a['first_name']} and {b['first_name']} both went {score}. "
+                f"{html.escape(a['first_name'])} and "
+                f"{html.escape(b['first_name'])} both went {score}. "
                 f"No cookie today."
             )
         else:
             w, l = (a, b) if ca < cb else (b, a)
             db.save_wordle_duel(chat_id, day, w["user_id"])
-            total = db.add_cookies(chat_id, w["user_id"], 1)
+            total = db.add_cookies(chat_id, w["user_id"], 1, "wordle duel")
             text = (
-                f"🏅 <b>{w['first_name']}</b> takes today's Wordle duel "
+                f"🏅 <b>{html.escape(w['first_name'])}</b> takes today's Wordle duel "
                 f"({min(ca, cb)} vs {max(ca, cb) if max(ca, cb) <= 6 else 'X'} "
                 f"guesses) — +1 🍪 (now {total})."
             )
@@ -238,7 +241,7 @@ async def wordle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 s = "not finished yet"
             wins = db.wordle_duel_wins(chat.id, m["user_id"])
             played = db.wordle_user_days(m["user_id"])
-            line = f"• <b>{m['first_name']}</b>: {s}"
+            line = f"• <b>{html.escape(m['first_name'])}</b>: {s}"
             if played:
                 solved = [n for _, w, n in played if w]
                 avg = f"{sum(solved) / len(solved):.1f}" if solved else "–"
@@ -247,11 +250,12 @@ async def wordle_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f" · streak {_streak(m['user_id'])} · avg {avg}"
                 )
             lines.append(line)
+        safe_name = html.escape(user.first_name)
         if await _begin_dm_game(context, user):
-            lines.append(f"\n📬 {user.first_name} — today's puzzle is in your DMs!")
+            lines.append(f"\n📬 {safe_name} — today's puzzle is in your DMs!")
         else:
             lines.append(
-                f"\n{user.first_name} — tap below and hit Start: "
+                f"\n{safe_name} — tap below and hit Start: "
                 f"the puzzle begins automatically."
             )
         play_btn = InlineKeyboardMarkup([[InlineKeyboardButton(

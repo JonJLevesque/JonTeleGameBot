@@ -11,6 +11,7 @@ deepest stage (falling back to reprises of the deep half of the arc).
   /dailyq now         — post today's question immediately
   /dailyq off         — stop it
 """
+import html as _html
 import logging
 import random
 import re
@@ -55,7 +56,8 @@ def _stage_note(idx: int) -> str:
 
 
 async def _post_question(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
-    idx = db.dailyq_bump(chat_id)
+    row = db.dailyq_get(chat_id)
+    idx = row["idx"] if row else 0
     spicy = db.is_spicy(chat_id)
     seq = _sequence(spicy)
     question = None
@@ -72,10 +74,11 @@ async def _post_question(context: ContextTypes.DEFAULT_TYPE, chat_id: int):
             question = random.choice(seq[len(seq) // 2:]) + "  (encore)"
     await context.bot.send_message(
         chat_id,
-        f"💬 <b>Daily Question #{idx + 1}</b>\n\n{question}\n\n"
+        f"💬 <b>Daily Question #{idx + 1}</b>\n\n{_html.escape(question)}\n\n"
         f"<i>Both of you answer. No skipping.</i>",
         parse_mode="HTML",
     )
+    db.dailyq_bump(chat_id)  # advance only after a successful send
 
 
 async def _job(context: ContextTypes.DEFAULT_TYPE):

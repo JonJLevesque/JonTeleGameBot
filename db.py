@@ -307,6 +307,39 @@ def create_game(chat_id, game_type, p0_id, p0_name, p1_id, p1_name,
     return cur.lastrowid
 
 
+def escrow_and_activate(game, p1_id: int, p1_name: str, state: dict) -> bool:
+    """Accept a challenge atomically: verify + deduct both stakes and flip
+    the game to active in ONE transaction, so a crash can never strand an
+    escrowed stake on a still-pending game. False if a balance fell short."""
+    stake = game["stake"]
+    with _db() as c:
+        if stake:
+            for uid in (game["p0_id"], p1_id):
+                row = c.execute(
+                    "SELECT count FROM cookies WHERE chat_id = ? AND user_id = ?",
+                    (game["chat_id"], uid),
+                ).fetchone()
+                if (row["count"] if row else 0) < stake:
+                    return False
+            for uid in (game["p0_id"], p1_id):
+                c.execute(
+                    "UPDATE cookies SET count = count - ? "
+                    "WHERE chat_id = ? AND user_id = ?",
+                    (stake, game["chat_id"], uid),
+                )
+                c.execute(
+                    "INSERT INTO cookie_log (chat_id, user_id, delta, reason) "
+                    "VALUES (?, ?, ?, 'wager escrow')",
+                    (game["chat_id"], uid, -stake),
+                )
+        c.execute(
+            "UPDATE games SET status = 'active', state = ?, p1_id = ?, "
+            "p1_name = ?, updated_at = datetime('now') WHERE id = ?",
+            (json.dumps(state), p1_id, p1_name, game["id"]),
+        )
+    return True
+
+
 def finished_games_since(chat_id: int, since_ts: str) -> int:
     row = _db().execute(
         "SELECT COUNT(*) AS n FROM games WHERE chat_id = ? "
@@ -422,6 +455,11 @@ def save_beautiful(chat_id: int, state: dict) -> None:
 def clear_beautiful(chat_id: int) -> None:
     with _db() as c:
         c.execute("DELETE FROM beautiful WHERE chat_id = ?", (chat_id,))
+        # re-baseline the weekly-recap snapshot for the next bracket
+        c.execute(
+            "UPDATE recap_chats SET last_beautiful = 0 WHERE chat_id = ?",
+            (chat_id,),
+        )
 
 
 # ----------------------------------------------------- custom tournaments

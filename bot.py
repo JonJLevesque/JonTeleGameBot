@@ -88,6 +88,11 @@ async def _on_error(update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     db.init(config.DB_PATH)
+    # NOTE: updates are processed sequentially (concurrent_updates is off).
+    # Several handlers rely on this — wordle's duel settlement and geo's
+    # in-memory rounds have no locks of their own. If you ever enable
+    # concurrent_updates, add per-chat locks there first (beautiful,
+    # tournament and boardgames already have them).
     app = Application.builder().token(config.BOT_TOKEN).post_init(_post_init).build()
 
     # Group -1 runs before command handlers: cache every user we can see so

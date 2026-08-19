@@ -11,9 +11,11 @@ different people have voted:
 
 State lives in SQLite, so the bracket can idle for weeks between matchups.
 """
+import asyncio
 import html
 import json
 import random
+from collections import defaultdict
 from pathlib import Path
 
 from telegram import (
@@ -31,6 +33,7 @@ import db
 from .common import require_group
 
 _PLACES: list[dict] | None = None
+_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)  # per-chat vote lock
 
 
 def places() -> list[dict]:
@@ -62,16 +65,27 @@ def _new_state() -> dict:
 
 # -------------------------------------------------------------- presentation
 
-def _keyboard(match: dict) -> InlineKeyboardMarkup:
+def _keyboard(state: dict) -> InlineKeyboardMarkup:
+    match = state["match"]
+    nonce = state.get("nonce", 0)  # 0 = bracket predating nonces
+
     def btn(side: str, pid: int) -> InlineKeyboardButton:
         name = places()[pid]["name"]
         name = name if len(name) <= 22 else name[:21] + "…"
         icon = "🅰️" if side == "a" else "🅱️"
         return InlineKeyboardButton(
-            f"{icon} {name}", callback_data=f"wmbp:{match['no']}:{side}"
+            f"{icon} {name}", callback_data=f"wmbp:{nonce}:{match['no']}:{side}"
         )
 
     return InlineKeyboardMarkup([[btn("a", match["a"]), btn("b", match["b"])]])
+
+
+def _parse_vote(data: str) -> tuple[int | None, int, str]:
+    """(nonce, match_no, choice); nonce None for pre-nonce legacy buttons."""
+    parts = data.split(":")
+    if len(parts) == 4:
+        return int(parts[1]), int(parts[2]), parts[3]
+    return None, int(parts[1]), parts[2]
 
 
 def _match_text(state: dict, banner: str = "") -> str:
@@ -115,7 +129,7 @@ async def _post_match(chat_id: int, context: ContextTypes.DEFAULT_TYPE,
         chat_id,
         _match_text(state, banner),
         parse_mode=ParseMode.HTML,
-        reply_markup=_keyboard(m),
+        reply_markup=_keyboard(state),
         link_preview_options=LinkPreviewOptions(is_disabled=album_ok),
     )
 
@@ -224,10 +238,16 @@ async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer()
         return
     chat_id = q.message.chat.id
-    _, match_no, choice = q.data.split(":")
+    async with _locks[chat_id]:
+        await _vote_locked(q, context, chat_id)
+
+
+async def _vote_locked(q, context: ContextTypes.DEFAULT_TYPE, chat_id: int):
+    nonce, match_no, choice = _parse_vote(q.data)
     state = db.get_beautiful(chat_id)
     m = state["match"] if state else None
-    if not m or m["no"] != int(match_no):
+    if (not m or m["no"] != match_no
+            or (nonce is not None and nonce != state.get("nonce", 0))):
         await q.answer("This matchup is already decided.")
         return
 
@@ -245,7 +265,7 @@ async def vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await q.edit_message_text(
                 _match_text(state),
                 parse_mode=ParseMode.HTML,
-                reply_markup=_keyboard(m),
+                reply_markup=_keyboard(state),
                 link_preview_options=LinkPreviewOptions(is_disabled=True),
             )
         except TelegramError:

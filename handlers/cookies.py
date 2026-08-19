@@ -1,4 +1,6 @@
 """Cookie economy: /cookie, /cookies, /cookieboard."""
+import html
+
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -24,9 +26,10 @@ async def give_cookie(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Nice try — you can't award yourself cookies. 🚫🍪"
         )
         return
-    total = db.add_cookies(update.effective_chat.id, target_id, 1)
+    total = db.add_cookies(update.effective_chat.id, target_id, 1, "awarded")
     await update.effective_message.reply_html(
-        f"🍪 <b>{giver.first_name}</b> gave <b>{target_name}</b> a cookie! "
+        f"🍪 <b>{html.escape(giver.first_name)}</b> gave "
+        f"<b>{html.escape(target_name)}</b> a cookie! "
         f"They now have <b>{total}</b> cookie{'s' if total != 1 else ''}."
     )
 
@@ -42,7 +45,8 @@ async def show_cookies(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_id, target_name = update.effective_user.id, update.effective_user.first_name
     count = db.get_cookies(update.effective_chat.id, target_id)
     await update.effective_message.reply_html(
-        f"🍪 <b>{target_name}</b> has <b>{count}</b> cookie{'s' if count != 1 else ''} in this chat."
+        f"🍪 <b>{html.escape(target_name)}</b> has <b>{count}</b> "
+        f"cookie{'s' if count != 1 else ''} in this chat."
     )
 
 
@@ -58,7 +62,7 @@ async def cookie_board(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lines = ["🏆 <b>Cookie leaderboard</b>"]
     for rank, (name, count) in enumerate(top):
         medal = MEDALS[rank] if rank < len(MEDALS) else f"{rank + 1}."
-        lines.append(f"{medal} {name} — {count} 🍪")
+        lines.append(f"{medal} {html.escape(name)} — {count} 🍪")
     await update.effective_message.reply_html("\n".join(lines))
 
 

@@ -8,7 +8,24 @@ from telegram.ext import ContextTypes
 import db
 
 GROUP_TYPES = ("group", "supergroup")
-LOCAL_TZ = datetime.now().astimezone().tzinfo  # host timezone for daily jobs
+
+
+def _local_tz():
+    """The host's real timezone (DST-aware). datetime.astimezone() alone
+    yields a fixed offset frozen at process start, which would shift every
+    daily job by an hour after a DST transition."""
+    try:
+        import os
+        from zoneinfo import ZoneInfo
+        path = os.path.realpath("/etc/localtime")
+        if "zoneinfo/" in path:
+            return ZoneInfo(path.split("zoneinfo/", 1)[1])
+    except Exception:
+        pass
+    return datetime.now().astimezone().tzinfo
+
+
+LOCAL_TZ = _local_tz()  # host timezone for all daily jobs
 
 _member_counts: dict[int, tuple[int, float]] = {}  # chat_id -> (count, expiry)
 
