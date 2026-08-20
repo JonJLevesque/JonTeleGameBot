@@ -150,6 +150,20 @@ def init(path: str) -> None:
             idx     INTEGER NOT NULL DEFAULT 0
         );
 
+        CREATE TABLE IF NOT EXISTS whispers (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id      INTEGER NOT NULL,
+            sender_name    TEXT NOT NULL,
+            recipient_id   INTEGER NOT NULL,
+            recipient_name TEXT NOT NULL,
+            message        TEXT NOT NULL,
+            status         TEXT NOT NULL DEFAULT 'pending',  -- pending | delivered
+            created_at     TEXT DEFAULT (datetime('now')),
+            delivered_at   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_whispers_pending
+            ON whispers (recipient_id) WHERE status = 'pending';
+
         CREATE TABLE IF NOT EXISTS paranoia_rounds (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id     INTEGER NOT NULL,
@@ -660,6 +674,65 @@ def dailyq_bump(chat_id: int) -> int:
 def dailyq_off(chat_id: int) -> None:
     with _db() as c:
         c.execute("DELETE FROM dailyq WHERE chat_id = ?", (chat_id,))
+
+
+# ------------------------------------------------------------------- whispers
+
+def create_whisper(sender_id: int, sender_name: str, recipient_id: int,
+                   recipient_name: str, message: str) -> int:
+    with _db() as c:
+        cur = c.execute(
+            "INSERT INTO whispers (sender_id, sender_name, recipient_id, "
+            "recipient_name, message) VALUES (?, ?, ?, ?, ?)",
+            (sender_id, sender_name, recipient_id, recipient_name, message),
+        )
+    return cur.lastrowid
+
+
+def pending_whispers(recipient_id: int):
+    """Undelivered whispers for a user, oldest first."""
+    return _db().execute(
+        "SELECT * FROM whispers WHERE recipient_id = ? AND status = 'pending' "
+        "ORDER BY id",
+        (recipient_id,),
+    ).fetchall()
+
+
+def mark_whisper_delivered(whisper_id: int) -> None:
+    with _db() as c:
+        c.execute(
+            "UPDATE whispers SET status = 'delivered', "
+            "delivered_at = datetime('now') WHERE id = ?",
+            (whisper_id,),
+        )
+
+
+def resolve_recipient(sender_id: int, token: str) -> list[tuple[int, str]]:
+    """Candidates for a whisper recipient: users who share a chat with the
+    sender, matched by @username or (case-insensitive) first name. One row
+    per user_id, so someone known in several shared chats appears once."""
+    shared = ("SELECT chat_id FROM known_users WHERE user_id = ?")
+    if token.startswith("@"):
+        where, value = "username = ?", token.lstrip("@").lower()
+    else:
+        where, value = "LOWER(first_name) = LOWER(?)", token
+    rows = _db().execute(
+        f"SELECT user_id, MAX(first_name) AS first_name FROM known_users "
+        f"WHERE chat_id IN ({shared}) AND {where} AND user_id != ? "
+        f"GROUP BY user_id",
+        (sender_id, value, sender_id),
+    ).fetchall()
+    return [(r["user_id"], r["first_name"]) for r in rows]
+
+
+def shared_chats(user_a: int, user_b: int) -> list[int]:
+    """Group chats where both users are known."""
+    rows = _db().execute(
+        "SELECT chat_id FROM known_users WHERE user_id = ? "
+        "AND chat_id IN (SELECT chat_id FROM known_users WHERE user_id = ?)",
+        (user_a, user_b),
+    ).fetchall()
+    return [r["chat_id"] for r in rows]
 
 
 # ------------------------------------------------------------------- paranoia

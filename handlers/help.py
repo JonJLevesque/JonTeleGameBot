@@ -43,6 +43,11 @@ button), results auto-post to the group, fastest solver wins the day's 🍪
 (and, with spicy mode, steamier) as the days go
 /recap on|now|off — Sunday-evening scoreboard of the week
 
+<b>Carrier pigeon</b> 🕊️
+/tell — DM me something for someone in your group and I deliver it to
+them, word for word, so you don't have to say it directly
+/inbox — collect whispers waiting for you (DM me)
+
 <b>Other</b>
 /help — this message
 
@@ -73,6 +78,8 @@ COMMAND_LIST = [
     ("shop", "IOU shop: cookies for real rewards"),
     ("redeem", "Buy a shop reward with cookies"),
     ("recap", "Weekly Sunday scoreboard (on|now|off)"),
+    ("tell", "DM me a message; I deliver it for you 🕊️"),
+    ("inbox", "Collect whispers waiting for you"),
     ("help", "List all commands"),
 ]
 
@@ -82,11 +89,23 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Deep links: t.me/<bot>?start=wordle from the group's Play button.
-    if (update.effective_chat.type == "private"
-            and context.args and context.args[0] == "wordle"):
-        from . import wordle
-        await wordle.begin_from_start(update, context)
+    from . import pigeon
+
+    # Deep links: t.me/<bot>?start=<arg> from the group's inline buttons.
+    if update.effective_chat.type == "private":
+        arg = context.args[0] if context.args else None
+        if arg == "wordle":
+            from . import wordle
+            await wordle.begin_from_start(update, context)
+        elif arg == "inbox":
+            await pigeon.inbox_from_start(update, context)
+        elif arg == "tell":
+            await pigeon.tell_from_start(update, context)
+        else:
+            await help_command(update, context)
+        # Opening a DM is the moment undelivered whispers become deliverable.
+        if arg != "inbox":
+            await pigeon.flush_inbox(context, update.effective_user.id)
         return
     await help_command(update, context)
 
