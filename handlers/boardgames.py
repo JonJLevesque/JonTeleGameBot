@@ -153,9 +153,11 @@ async def _handle_pending(query, game, cls, payload):
         )
     elif payload == "d":
         if user.id == game["p0_id"]:
-            text = f"🎮 {cls.name}: challenge cancelled by {game['p0_name']}."
+            text = (f"🎮 {cls.name}: challenge cancelled by "
+                    f"{html.escape(game['p0_name'])}.")
         elif not open_challenge and user.id == game["p1_id"]:
-            text = f"🎮 {cls.name}: {user.first_name} declined the challenge."
+            text = (f"🎮 {cls.name}: {html.escape(user.first_name)} "
+                    f"declined the challenge.")
         elif open_challenge:
             await query.answer(
                 f"Anyone can Accept — only {game['p0_name']} can cancel this."

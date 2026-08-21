@@ -76,6 +76,16 @@ def _build(chat_id: int, update_snapshot: bool = False) -> str:
     if games:
         lines.append(f"\n🎮 Board games finished this week: {games}")
 
+    memory = db.random_quote(chat_id, since_ts=since_ts)
+    if memory:
+        text = memory["text"]
+        if len(text) > 200:
+            text = text[:200] + "…"
+        lines.append(
+            f"\n📜 <b>Memory of the week</b>\n"
+            f"  “{html.escape(text)}” — {html.escape(memory['author_name'])}"
+        )
+
     dq = db.dailyq_get(chat_id)
     if dq:
         lines.append(f"💬 Daily questions asked so far: {dq['idx']}")

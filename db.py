@@ -159,10 +159,26 @@ def init(path: str) -> None:
             message        TEXT NOT NULL,
             status         TEXT NOT NULL DEFAULT 'pending',  -- pending | delivered
             created_at     TEXT DEFAULT (datetime('now')),
-            delivered_at   TEXT
+            delivered_at   TEXT,
+            deliver_at     TEXT,                    -- UTC; NULL = deliver now
+            kind           TEXT NOT NULL DEFAULT 'whisper',  -- whisper | capsule
+            teased         INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_whispers_pending
             ON whispers (recipient_id) WHERE status = 'pending';
+
+        CREATE TABLE IF NOT EXISTS quotes (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id       INTEGER NOT NULL,
+            message_id    INTEGER,
+            author_id     INTEGER,
+            author_name   TEXT NOT NULL,
+            text          TEXT NOT NULL,
+            saved_by_id   INTEGER NOT NULL,
+            saved_by_name TEXT NOT NULL,
+            ts            TEXT DEFAULT (datetime('now')),
+            UNIQUE (chat_id, message_id)
+        );
 
         CREATE TABLE IF NOT EXISTS paranoia_rounds (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,6 +191,9 @@ def init(path: str) -> None:
         """
     )
     _ensure_column("games", "stake", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column("whispers", "deliver_at", "TEXT")
+    _ensure_column("whispers", "kind", "TEXT NOT NULL DEFAULT 'whisper'")
+    _ensure_column("whispers", "teased", "INTEGER NOT NULL DEFAULT 0")
     _conn.commit()
 
 
@@ -679,23 +698,47 @@ def dailyq_off(chat_id: int) -> None:
 # ------------------------------------------------------------------- whispers
 
 def create_whisper(sender_id: int, sender_name: str, recipient_id: int,
-                   recipient_name: str, message: str) -> int:
+                   recipient_name: str, message: str,
+                   deliver_at: str | None = None,
+                   kind: str = "whisper") -> int:
+    """deliver_at is a UTC 'YYYY-MM-DD HH:MM:SS' string; NULL delivers now."""
     with _db() as c:
         cur = c.execute(
             "INSERT INTO whispers (sender_id, sender_name, recipient_id, "
-            "recipient_name, message) VALUES (?, ?, ?, ?, ?)",
-            (sender_id, sender_name, recipient_id, recipient_name, message),
+            "recipient_name, message, deliver_at, kind) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (sender_id, sender_name, recipient_id, recipient_name, message,
+             deliver_at, kind),
         )
     return cur.lastrowid
 
 
 def pending_whispers(recipient_id: int):
-    """Undelivered whispers for a user, oldest first."""
+    """Undelivered whispers for a user that are due (a scheduled whisper or
+    capsule stays sealed until its deliver_at passes), oldest first."""
     return _db().execute(
         "SELECT * FROM whispers WHERE recipient_id = ? AND status = 'pending' "
+        "AND (deliver_at IS NULL OR deliver_at <= datetime('now')) "
         "ORDER BY id",
         (recipient_id,),
     ).fetchall()
+
+
+def due_whispers():
+    """Scheduled whispers/capsules whose delivery time has arrived, oldest
+    first. Used by the courier job; immediate whispers never appear here."""
+    return _db().execute(
+        "SELECT * FROM whispers WHERE status = 'pending' "
+        "AND deliver_at IS NOT NULL AND deliver_at <= datetime('now') "
+        "ORDER BY id"
+    ).fetchall()
+
+
+def mark_whisper_teased(whisper_id: int) -> None:
+    """Remember that the 'you've got mail' group tease was posted, so the
+    minutely courier job never announces the same whisper twice."""
+    with _db() as c:
+        c.execute("UPDATE whispers SET teased = 1 WHERE id = ?", (whisper_id,))
 
 
 def mark_whisper_delivered(whisper_id: int) -> None:
@@ -733,6 +776,50 @@ def shared_chats(user_a: int, user_b: int) -> list[int]:
         (user_a, user_b),
     ).fetchall()
     return [r["chat_id"] for r in rows]
+
+
+# --------------------------------------------------------------- quote wall
+
+def save_quote(chat_id: int, message_id: int | None, author_id: int | None,
+               author_name: str, text: str,
+               saved_by_id: int, saved_by_name: str) -> int | None:
+    """Preserve a message for posterity. None if it was already saved."""
+    try:
+        with _db() as c:
+            cur = c.execute(
+                "INSERT INTO quotes (chat_id, message_id, author_id, "
+                "author_name, text, saved_by_id, saved_by_name) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (chat_id, message_id, author_id, author_name, text,
+                 saved_by_id, saved_by_name),
+            )
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+
+
+def random_quote(chat_id: int, like: str | None = None,
+                 since_ts: str | None = None):
+    """A random saved quote, optionally filtered by substring or recency."""
+    where, args = ["chat_id = ?"], [chat_id]
+    if like:
+        where.append("text LIKE ?")
+        args.append(f"%{like}%")
+    if since_ts:
+        where.append("ts >= ?")
+        args.append(since_ts)
+    return _db().execute(
+        f"SELECT * FROM quotes WHERE {' AND '.join(where)} "
+        f"ORDER BY RANDOM() LIMIT 1",
+        args,
+    ).fetchone()
+
+
+def quote_count(chat_id: int) -> int:
+    row = _db().execute(
+        "SELECT COUNT(*) AS n FROM quotes WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return row["n"]
 
 
 # ------------------------------------------------------------------- paranoia

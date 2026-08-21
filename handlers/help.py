@@ -26,6 +26,7 @@ add a number to wager cookies: /chess @rival 10 — winner takes the pot)
 /reversi [@user] — Reversi/Othello ⚫⚪
 /checkers [@user] — Checkers 🔴⚪
 /chess [@user] — Chess ♔♚ (castling, en passant, the lot)
+/battleship [@user] — Battleship 🚢: hidden fleets, 💥 keeps your turn
 Every board has 🏳️ Resign; finished boards offer a 🔄 Rematch.
 
 <b>Tournaments &amp; trivia</b> 🌍
@@ -45,8 +46,15 @@ button), results auto-post to the group, fastest solver wins the day's 🍪
 
 <b>Carrier pigeon</b> 🕊️
 /tell — DM me something for someone in your group and I deliver it to
-them, word for word, so you don't have to say it directly
+them, word for word, so you don't have to say it directly — now, or
+later (/tell Jon in 2h…, at 9pm…, tomorrow 8am…)
+/capsule — DM me a sealed time capsule (/capsule Jon 6mo …); no
+duration and it arrives months from now, when they least expect it
 /inbox — collect whispers waiting for you (DM me)
+
+<b>The archives</b> 📜
+/quote — reply to a legendary message to preserve it forever
+/memory [word] — resurface a random archived quote
 
 <b>Other</b>
 /help — this message
@@ -79,7 +87,11 @@ COMMAND_LIST = [
     ("redeem", "Buy a shop reward with cookies"),
     ("recap", "Weekly Sunday scoreboard (on|now|off)"),
     ("tell", "DM me a message; I deliver it for you 🕊️"),
+    ("capsule", "Seal a time capsule for months from now 📜"),
     ("inbox", "Collect whispers waiting for you"),
+    ("quote", "Reply to a message to archive it forever"),
+    ("memory", "Resurface a random archived quote"),
+    ("battleship", "Sink the hidden fleet 🚢"),
     ("help", "List all commands"),
 ]
 
