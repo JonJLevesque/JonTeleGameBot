@@ -14,7 +14,7 @@ from telegram.ext import Application, ContextTypes, TypeHandler
 import config
 import db
 from handlers import (
-    all_handlers, dailyq, levels, pet, pigeon, recap, track_users,
+    all_handlers, brain, dailyq, levels, pet, pigeon, recap, track_users,
 )
 from handlers import wordle as wordle_handlers
 from handlers.common import LOCAL_TZ
@@ -60,6 +60,7 @@ async def _post_init(app: Application):
     pigeon.schedule(app)
     levels.schedule(app)
     pet.schedule(app)
+    brain.schedule(app)
     app.job_queue.run_daily(
         _backup_job, time(3, 30, tzinfo=LOCAL_TZ), name="db-backup"
     )

@@ -87,6 +87,15 @@ def _build(chat_id: int, update_snapshot: bool = False) -> str:
             f"  “{html.escape(text)}” — {html.escape(memory['author_name'])}"
         )
 
+    learned = db.memories_since(chat_id, since_ts)
+    if learned:
+        newest = learned[-1]["text"][:120]
+        lines.append(
+            f"\n🧠 I learned {len(learned)} new thing"
+            f"{'s' if len(learned) != 1 else ''} about you two this week — "
+            f"most recently: “{html.escape(newest)}”"
+        )
+
     dq = db.dailyq_get(chat_id)
     if dq:
         lines.append(f"💬 Daily questions asked so far: {dq['idx']}")

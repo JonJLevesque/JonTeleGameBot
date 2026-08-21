@@ -1,7 +1,7 @@
 from . import (
-    battleship, beautiful, boardgames, casino, cookies, dailydrops, dailyq,
-    geo, help, levels, party, persona, pet, pigeon, quotes, recap, roleplay,
-    settle, shop, taboo, tournament, wordle,
+    battleship, beautiful, boardgames, brain, casino, cookies, dailydrops,
+    dailyq, geo, help, levels, party, persona, pet, pigeon, quotes, recap,
+    roleplay, settle, shop, taboo, tournament, wordle,
 )
 from .common import track_users
 
@@ -32,6 +32,7 @@ def all_handlers():
         + levels.get_handlers()
         + pet.get_handlers()
         + persona.get_handlers()
+        + brain.get_handlers()
     )
 
 

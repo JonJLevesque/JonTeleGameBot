@@ -14,6 +14,7 @@ import logging
 from collections import defaultdict, deque
 
 import config
+import db
 
 log = logging.getLogger("partybot.ai")
 
@@ -196,18 +197,37 @@ def _context_lines(*, duo, spicy, user_name, subject, names):
     return lines
 
 
+MEMORY_MARKER_RULE = (
+    "Memory: if the user asks you to remember something, or states a durable "
+    "fact worth keeping (a preference, nickname, in-joke, date, plan, "
+    "recurring bit), append it after your reply as [[remember: fact]] — at "
+    "most two, each under 150 characters, third person, plain statement. "
+    "Skip anything sensitive (health, money, relationship conflict). The "
+    "markers are stripped before the chat sees your reply; never mention "
+    "them or the memory system unprompted."
+)
+
+
 async def converse(chat_id, *, user_name, text, context_lines=None,
-                   standings=None, spicy=False, is_operator=False):
+                   standings=None, spicy=False, is_operator=False,
+                   memories=None):
     """A short in-character reply to a chat message, or None. There is no
     static fallback here on purpose: for a personality, silence beats a
     canned line that doesn't fit the moment (the handler keeps a tiny
-    mention-only bank for keyless installs)."""
+    mention-only bank for keyless installs). The reply may carry trailing
+    [[remember: ...]] markers — the handler strips and stores them."""
     if not ENABLED:
         return None
     key = (chat_id, "persona")
     parts = []
     if standings:
         parts.append("Current chat standings (factual):\n" + standings)
+    if memories:
+        parts.append(
+            "Things you know about these people (weave in naturally when "
+            "relevant — never recite the list):\n- " + "\n- ".join(memories)
+        )
+    parts.append(MEMORY_MARKER_RULE)
     if context_lines:
         parts.append(
             "Recent conversation, oldest first:\n" + "\n".join(context_lines)
@@ -284,6 +304,16 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
         )
     if extra:
         parts.append(extra)
+    try:
+        known = db.relevant_memories(chat_id, limit=20)
+    except Exception:
+        known = []
+    if known:
+        parts.append(
+            "Things known about this chat's members — use them to make the "
+            "prompt personal when one fits naturally; never recite the "
+            "list:\n- " + "\n- ".join(known)
+        )
     if _recent[key]:
         parts.append(
             "Recently used in this chat (do something clearly different):\n- "
@@ -324,3 +354,48 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
     except Exception:
         log.exception("AI prompt generation failed (category=%s)", category)
         return None
+
+
+HARVEST_SYSTEM = """\
+You maintain a small memory file for a Telegram group-chat bot. From the
+conversation excerpt you receive, extract durable facts worth remembering
+about the members: preferences, nicknames, in-jokes, recurring bits,
+upcoming plans or dates, things they own or love or loathe.
+
+Rules:
+- Only facts likely to still matter in a month. No play-by-play, no moods.
+- Skip anything sensitive: health, money, arguments, third parties.
+- Skip anything already in the known list (or a rewording of it).
+- Each fact: third person, self-contained, under 150 characters.
+- Output one fact per line, nothing else. If nothing qualifies, output
+  exactly: NONE"""
+
+
+async def harvest_memories(chat_id, context_lines, existing) -> list[str]:
+    """Extract up to 5 new durable facts from recent chat, or []."""
+    if not ENABLED or not context_lines:
+        return []
+    parts = []
+    if existing:
+        parts.append("Already known (do not repeat):\n- " + "\n- ".join(existing))
+    parts.append("Conversation excerpt, oldest first:\n" + "\n".join(context_lines))
+    try:
+        response = await asyncio.wait_for(
+            _client.messages.create(
+                model=config.AI_MODEL,
+                max_tokens=400,
+                system=HARVEST_SYSTEM,
+                messages=[{"role": "user", "content": "\n\n".join(parts)}],
+            ),
+            timeout=TIMEOUT_SECONDS,
+        )
+        text = "".join(
+            block.text for block in response.content if block.type == "text"
+        ).strip()
+    except Exception:
+        log.exception("memory harvest failed")
+        return []
+    if not text or text.upper() == "NONE":
+        return []
+    facts = [ln.strip("-• ").strip() for ln in text.splitlines()]
+    return [f for f in facts if f and f.upper() != "NONE"][:5]

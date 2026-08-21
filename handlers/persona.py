@@ -25,13 +25,14 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 import ai
 import config
 import db
+from . import brain
 from .common import GROUP_TYPES
 from .wordle import _streak as wordle_streak
 
 COOLDOWN_SECONDS = 15
 DAILY_CAP = 40
-INTERJECT_AFTER = 25   # human messages since the bot last spoke
-INTERJECT_CHANCE = 0.03
+INTERJECT_AFTER = 30    # human messages since the bot last spoke
+INTERJECT_CHANCE = 0.021  # dialed back 30% from 0.03 by operator request
 
 # Two banks, one per register (see is_operator): the pigeon dotes on the
 # members and long-suffers the management.
@@ -161,6 +162,21 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     operator = is_operator(user.id)
+
+    # Direct memory instructions ("@bot remember ...") are handled
+    # deterministically — they must work even with no API key, and a
+    # "remember X" must never be paraphrased away by the model.
+    if addressed:
+        bare = msg.text.replace(f"@{context.bot.username}", "").strip()
+        instruction = brain.parse_instruction(bare)
+        if instruction:
+            await msg.reply_text(
+                brain.handle_instruction(chat.id, *instruction)
+            )
+            _limiter.record(chat.id, now, today)
+            _since_bot[chat.id] = 0
+            return
+
     if ai.ENABLED:
         await context.bot.send_chat_action(chat.id, ChatAction.TYPING)
         reply = await ai.converse(
@@ -171,12 +187,18 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             standings=_standings(chat.id),
             spicy=db.is_spicy(chat.id),
             is_operator=operator,
+            memories=db.relevant_memories(chat.id, msg.text),
         )
     elif addressed:
         reply = canned_line(operator)
     else:
         return
 
+    if reply:
+        # The model may file facts it was told: [[remember: ...]] markers.
+        reply, facts = brain.strip_markers(reply)
+        for fact in facts:
+            db.add_memory(chat.id, fact, "told")
     if not reply:
         if not addressed:
             return  # a failed interjection dies quietly

@@ -180,6 +180,16 @@ def init(path: str) -> None:
             UNIQUE (chat_id, message_id)
         );
 
+        CREATE TABLE IF NOT EXISTS memories (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id       INTEGER NOT NULL,
+            about_user_id INTEGER,               -- NULL = about the chat
+            text          TEXT NOT NULL,
+            source        TEXT NOT NULL,         -- told | observed
+            created_at    TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_memories_chat ON memories (chat_id);
+
         CREATE TABLE IF NOT EXISTS tod_bags (
             chat_id INTEGER NOT NULL,
             user_id INTEGER NOT NULL,
@@ -820,6 +830,86 @@ def shared_chats(user_a: int, user_b: int) -> list[int]:
         (user_a, user_b),
     ).fetchall()
     return [r["chat_id"] for r in rows]
+
+
+# ----------------------------------------------------------------- memories
+
+MEMORY_CAP = 200  # per chat; oldest evicted beyond this
+
+
+def add_memory(chat_id: int, text: str, source: str,
+               about_user_id: int | None = None) -> int | None:
+    """Store one short fact about the chat. Near-duplicates (case-insensitive
+    exact text) are skipped; beyond MEMORY_CAP the oldest facts are evicted."""
+    text = " ".join(text.split())[:200]
+    if not text:
+        return None
+    with _db() as c:
+        dup = c.execute(
+            "SELECT id FROM memories WHERE chat_id = ? AND LOWER(text) = LOWER(?)",
+            (chat_id, text),
+        ).fetchone()
+        if dup:
+            return None
+        cur = c.execute(
+            "INSERT INTO memories (chat_id, about_user_id, text, source) "
+            "VALUES (?, ?, ?, ?)",
+            (chat_id, about_user_id, text, source),
+        )
+        c.execute(
+            "DELETE FROM memories WHERE chat_id = ? AND id NOT IN "
+            "(SELECT id FROM memories WHERE chat_id = ? ORDER BY id DESC LIMIT ?)",
+            (chat_id, chat_id, MEMORY_CAP),
+        )
+    return cur.lastrowid
+
+
+def memories_all(chat_id: int):
+    return _db().execute(
+        "SELECT * FROM memories WHERE chat_id = ? ORDER BY id", (chat_id,)
+    ).fetchall()
+
+
+def memories_since(chat_id: int, since_ts: str):
+    return _db().execute(
+        "SELECT * FROM memories WHERE chat_id = ? AND created_at >= ? "
+        "ORDER BY id", (chat_id, since_ts),
+    ).fetchall()
+
+
+def delete_memory(chat_id: int, memory_id: int) -> bool:
+    with _db() as c:
+        cur = c.execute(
+            "DELETE FROM memories WHERE chat_id = ? AND id = ?",
+            (chat_id, memory_id),
+        )
+    return cur.rowcount > 0
+
+
+def find_memories(chat_id: int, hint: str):
+    return _db().execute(
+        "SELECT * FROM memories WHERE chat_id = ? AND text LIKE ? ORDER BY id",
+        (chat_id, f"%{hint}%"),
+    ).fetchall()
+
+
+def relevant_memories(chat_id: int, text: str = "", limit: int = 30) -> list[str]:
+    """Memory texts for an AI context block: keyword hits on the message
+    first (words of 4+ letters), then the most recent facts, deduped."""
+    rows = memories_all(chat_id)
+    if not rows:
+        return []
+    words = {w for w in text.lower().split() if len(w) >= 4}
+    hits = [r["text"] for r in rows
+            if words and any(w in r["text"].lower() for w in words)]
+    recent = [r["text"] for r in reversed(rows)]
+    out: list[str] = []
+    for t in hits + recent:
+        if t not in out:
+            out.append(t)
+        if len(out) >= limit:
+            break
+    return out
 
 
 # ------------------------------------------------------- truth-or-dare bags

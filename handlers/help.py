@@ -71,7 +71,10 @@ together feeds it
 
 <b>Other</b>
 /help — this message
-Also: reply to me or @mention me and I'll answer. I have opinions.
+Also: reply to me or @mention me and I'll answer. I have opinions,
+and I remember things — tell me "remember …" and it's filed.
+/memories — everything I know about you two (transparency policy)
+/forget id — make me unknow one of them
 
 Tip: I only learn who's in the chat when people send messages, so if
 /cookie @someone says I don't know them, reply to their message instead.
@@ -92,6 +95,8 @@ COMMAND_LIST = [
     ("blackjack", "Blackjack vs the house — 3:2 on 21"),
     ("pet", "The chat's shared pet — feed it or lose it 🐣"),
     ("level", "The chat's shared relationship level 💞"),
+    ("memories", "Everything the bot knows about you 🧠"),
+    ("forget", "Delete one of the bot's memories"),
     ("tictactoe", "Challenge someone to Tic-Tac-Toe"),
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),
