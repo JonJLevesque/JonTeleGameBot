@@ -1,7 +1,8 @@
 """Shared-pet decay, feeding, cooldowns and the 48h runaway clock."""
 from handlers.pet import (
-    FEED_HUNGER, PLAY_COOLDOWN, RUNAWAY_AFTER, bar, feed, has_run_away,
-    hunger_mood, new_pet, play, play_wait, stage_of, tick,
+    FEED_HUNGER, PLAY_COOLDOWN, RUNAWAY_AFTER, TALK_BOOST_COOLDOWN,
+    TALK_HAPPY, bar, feed, has_run_away, hunger_mood, new_pet, play,
+    play_wait, stage_of, talk_boost, tick,
 )
 
 T0 = 1_700_000_000.0
@@ -76,6 +77,23 @@ def test_play_cooldown():
     assert play(s, T0 + PLAY_COOLDOWN - 1) == "cooldown"
     assert play_wait(s, T0 + PLAY_COOLDOWN - 60) == 60.0
     assert play(s, T0 + PLAY_COOLDOWN) == "ok"
+
+
+def test_talk_boost_bump_and_cooldown():
+    s = _pet(happiness=50.0)
+    assert talk_boost(s, T0)
+    assert s["happiness"] == 50.0 + TALK_HAPPY
+    # chatting again inside the window: no extra happiness
+    assert not talk_boost(s, T0 + TALK_BOOST_COOLDOWN - 1)
+    assert s["happiness"] == 50.0 + TALK_HAPPY
+    assert talk_boost(s, T0 + TALK_BOOST_COOLDOWN)
+    assert s["happiness"] == 50.0 + 2 * TALK_HAPPY
+
+
+def test_talk_boost_caps_at_100():
+    s = _pet(happiness=99.5)
+    assert talk_boost(s, T0)
+    assert s["happiness"] == 100.0
 
 
 def test_stage_boundaries():

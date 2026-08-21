@@ -11,12 +11,15 @@ can adopt again once their hearts heal.
 import html
 import random
 import time as _time
+from collections import defaultdict, deque
 from datetime import datetime
 
 from telegram import Update
+from telegram.constants import ChatAction
 from telegram.error import TelegramError
 from telegram.ext import CommandHandler, ContextTypes
 
+import ai
 import db
 from .common import LOCAL_TZ, require_group
 
@@ -33,6 +36,8 @@ PLAY_COOLDOWN = 30 * 60
 GIFT_CHANCE = 0.05
 WARN_AT = 80
 RUNAWAY_AFTER = 48 * 3600
+TALK_HAPPY = 2
+TALK_BOOST_COOLDOWN = 10 * 60  # a monologue can't substitute for playtime
 
 _PLAY_SCENES = [
     "{name} does a lap of honor around an imaginary track. Magnificent.",
@@ -47,6 +52,29 @@ _GIFT_SCENES = [
     "{name} proudly drops a find at your feet: +2 🍪. Do not ask where it was.",
     "{name} has been saving these for a special occasion. Apparently that's now: +2 🍪!",
 ]
+
+# An egg can't talk back yet — but it can absolutely hear you.
+_EGG_SCENES = [
+    "The egg wobbles once, then goes very still. Something in there is listening.",
+    "A faint tap-tap answers from inside the shell. Message received.",
+    "The egg tilts toward your voice and settles, somehow smug about it.",
+    "Nothing. Then, just as you turn away — one decisive thump.",
+    "The egg rocks gently, warmed by the attention. It can't talk yet. It will remember this.",
+]
+
+# When the AI is unavailable (or bails), the pet still acknowledges you.
+_TALK_FALLBACK = [
+    "{name} tilts its head at exactly the wrong angle and blinks twice. Understood, probably.",
+    "{name} listens with its whole body, then answers with a small noise that means everything and nothing.",
+    "{name} stares deep into your soul, then grooms its own shoulder. Conversation complete.",
+    "{name} nods along like an old friend who wasn't listening but loves you anyway.",
+    "{name} presses against your leg. Whatever you said, the answer is yes.",
+]
+
+# Recent /pet talk exchanges per chat, so the pet keeps a thread of the
+# conversation. In-memory on purpose: a restart forgetting small talk is
+# exactly how pets work.
+_talk_context: dict[int, deque] = defaultdict(lambda: deque(maxlen=10))
 
 
 # ------------------------------------------------------------ pure pet logic
@@ -134,6 +162,17 @@ def play(state: dict, now: float) -> str:
     state["last_play"] = now
     _update_starvation(state, now)
     return "ok"
+
+
+def talk_boost(state: dict, now: float) -> bool:
+    """Being spoken to warms the pet — a small happiness bump, at most once
+    per TALK_BOOST_COOLDOWN. The pet always answers; only the bump is gated."""
+    last = state.get("last_talk_boost")
+    if last is not None and now - last < TALK_BOOST_COOLDOWN:
+        return False
+    state["happiness"] = min(100.0, state["happiness"] + TALK_HAPPY)
+    state["last_talk_boost"] = now
+    return True
 
 
 def bar(value: float) -> str:
@@ -248,8 +287,9 @@ async def pet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_html(
             f"🥚 <b>An egg has appeared!</b> Inside: <b>{html.escape(name)}</b>, "
             f"who already loves you unconditionally and expects the same.\n"
-            f"It hatches in a day. Keep it fed (/pet feed, 1 🍪) and "
-            f"entertained (/pet play) — a pet left starving too long "
+            f"It hatches in a day. Keep it fed (/pet feed, 1 🍪), "
+            f"entertained (/pet play) and talked to (/pet talk hi — it "
+            f"talks back once hatched). A pet left starving too long "
             f"<i>will</i> pack its bags."
         )
         return
@@ -306,6 +346,39 @@ async def pet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         scene = random.choice(_PLAY_SCENES).format(name=safe)
         await msg.reply_html(f"🎾 {scene}")
         await _maybe_gift(msg, user, chat_id, name)
+    elif sub == "talk":
+        text = " ".join(args[1:]).strip()
+        if not text:
+            await msg.reply_text(
+                f"/pet talk <message> — say it out loud; {name} is listening."
+            )
+            return
+        talk_boost(state, now)
+        db.save_pet(chat_id, state)
+        label, emoji = stage_of(state, now)
+        if label == "egg":
+            await msg.reply_html("🥚 " + random.choice(_EGG_SCENES))
+            return
+        lines = _talk_context[chat_id]
+        lines.append(f"{user.first_name}: {text[:200]}")
+        reply = None
+        if ai.ENABLED:
+            await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
+            reply = await ai.pet_reply(
+                chat_id,
+                name=name,
+                species=state["species"],
+                stage=label,
+                hunger=hunger_mood(state["hunger"]),
+                happiness=happiness_mood(state["happiness"]),
+                user_name=user.first_name,
+                text=text[:400],
+                context_lines=list(lines),
+            )
+        if not reply:
+            reply = random.choice(_TALK_FALLBACK).format(name=name)
+        lines.append(f"{name}: {reply[:200]}")
+        await msg.reply_text(f"{emoji} {reply}")
     elif sub == "rename":
         new_name = " ".join(args[1:]).strip()
         if not new_name or len(new_name) > 20:
@@ -320,7 +393,7 @@ async def pet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await msg.reply_text(
             "/pet — status · /pet adopt <name> · /pet feed (1 🍪) · "
-            "/pet play · /pet rename <name>"
+            "/pet play · /pet talk <message> · /pet rename <name>"
         )
 
 

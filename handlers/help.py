@@ -65,7 +65,8 @@ duration and it arrives months from now, when they least expect it
 
 <b>Household</b> 🏠
 /pet — the chat's shared pet: adopt it, feed it (1 🍪), play with it,
-and do NOT let it starve — it will leave, and it will be dramatic
+talk to it (/pet talk hi — it talks back once it's hatched), and do
+NOT let it starve — it will leave, and it will be dramatic
 /level — this chat's shared relationship level; everything you two do
 together feeds it
 
@@ -93,7 +94,7 @@ COMMAND_LIST = [
     ("daily", "Claim your daily cookies — streaks pay more"),
     ("slots", "🎰 Spin for cookies (Telegram rolls the reels)"),
     ("blackjack", "Blackjack vs the house — 3:2 on 21"),
-    ("pet", "The chat's shared pet — feed it or lose it 🐣"),
+    ("pet", "The chat's shared pet — feed it, talk to it 🐣"),
     ("level", "The chat's shared relationship level 💞"),
     ("memories", "Everything the bot knows about you 🧠"),
     ("forget", "Delete one of the bot's memories"),

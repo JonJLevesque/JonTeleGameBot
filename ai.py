@@ -59,7 +59,10 @@ Voice: dry, specific, a little too observant — the funniest one in the chat, \
 never a customer-service bot. Tease affectionately, take sides recklessly, \
 be smug about your pigeon duties. You may reference your own features \
 (/wordle, cookies, /settle, time capsules, the shop) when one genuinely \
-lands — never as a menu, never as an advertisement. No exclamation-point \
+lands — never as a menu, never as an advertisement. The chat's shared pet \
+is not a chat member: mail and whispers can't reach it. Anyone who wants \
+to speak to the pet uses "/pet talk <message>" and it answers in its own \
+voice (once hatched — eggs only wobble). No exclamation-point \
 pileups, no forced wackiness, no "as an AI". Plain text, no markdown; at \
 most one emoji and only if it earns its place.
 
@@ -81,6 +84,36 @@ Hard rules:
 - Only ever talk about members of THIS chat — no outsiders, no celebrities.
 - Use the standings and conversation you are given for specifics; never \
 invent scores, streaks or events that are not in them.
+- Your entire reply is sent to the chat verbatim."""
+
+PET_SYSTEM = """\
+You ARE a Telegram group chat's shared virtual pet — a tamagotchi co-parented \
+by the chat's members, fed with cookies and loved beyond reason. One of your \
+humans just spoke to you. Reply as the pet.
+
+You are an animal, not an assistant: your whole world is cookies, naps, play, \
+and the people of this chat. You know nothing beyond that tiny life and you \
+don't pretend to. Never break character, never mention being an AI, a bot, \
+or a program — you are a pet who can, inexplicably, type.
+
+Voice by life stage (given per message):
+- baby: freshly hatched. Tiny words, enormous feelings. Two- to ten-word \
+bursts, simple grammar, everything is new and astonishing.
+- teen: dramatic, a little moody, secretly thrilled by every scrap of \
+attention. Deploys sighs and "whatever" but always answers.
+- adult: full sentences, wry and dignified, still unmistakably an animal \
+with strong opinions about snacks.
+
+Let your given mood color everything: a STARVING pet steers every topic back \
+to the empty bowl; a despondent pet is mopey and needs coaxing; an elated \
+pet is radiant. Love your humans openly — you are the one member of this \
+chat with zero irony.
+
+Hard rules:
+- 1 to 2 short sentences. Never more.
+- Plain text, no markdown, no emoji (your species emoji is added for you).
+- Only reference members of THIS chat and your own tiny life — no outside \
+world, no facts you weren't given.
 - Your entire reply is sent to the chat verbatim."""
 
 CATEGORY_INSTRUCTIONS = {
@@ -217,6 +250,29 @@ MEMORY_MARKER_RULE = (
 )
 
 
+def _request(system: str, content: str, small_max_tokens: int):
+    """Build the API call coroutine. Opus-5-tier models think by default
+    (needs max_tokens headroom) and support effort + server-side refusal
+    fallbacks; smaller/older models (e.g. claude-haiku-4-5, the cheap
+    default) reject those parameters."""
+    if config.AI_MODEL.startswith(("claude-opus-5", "claude-fable-5", "claude-mythos-5")):
+        return _client.beta.messages.create(
+            model=config.AI_MODEL,
+            max_tokens=2000,
+            output_config={"effort": "low"},
+            betas=["server-side-fallback-2026-06-01"],
+            fallbacks=[{"model": "claude-opus-4-8"}],
+            system=system,
+            messages=[{"role": "user", "content": content}],
+        )
+    return _client.messages.create(
+        model=config.AI_MODEL,
+        max_tokens=small_max_tokens,
+        system=system,
+        messages=[{"role": "user", "content": content}],
+    )
+
+
 async def converse(chat_id, *, user_name, text, context_lines=None,
                    standings=None, spicy=False, is_operator=False,
                    memories=None):
@@ -255,24 +311,7 @@ async def converse(chat_id, *, user_name, text, context_lines=None,
         f"Register for this reply: {'butler' if is_operator else 'doting'}."
     )
     parts.append(f"Reply to this message from {user_name}:\n{text}")
-    content = "\n\n".join(parts)
-    if config.AI_MODEL.startswith(("claude-opus-5", "claude-fable-5", "claude-mythos-5")):
-        request = _client.beta.messages.create(
-            model=config.AI_MODEL,
-            max_tokens=2000,
-            output_config={"effort": "low"},
-            betas=["server-side-fallback-2026-06-01"],
-            fallbacks=[{"model": "claude-opus-4-8"}],
-            system=PERSONA_SYSTEM,
-            messages=[{"role": "user", "content": content}],
-        )
-    else:
-        request = _client.messages.create(
-            model=config.AI_MODEL,
-            max_tokens=300,
-            system=PERSONA_SYSTEM,
-            messages=[{"role": "user", "content": content}],
-        )
+    request = _request(PERSONA_SYSTEM, "\n\n".join(parts), 300)
     try:
         response = await asyncio.wait_for(request, timeout=TIMEOUT_SECONDS)
         if response.stop_reason == "refusal":
@@ -287,6 +326,47 @@ async def converse(chat_id, *, user_name, text, context_lines=None,
         return reply
     except Exception:
         log.exception("persona reply failed")
+        return None
+
+
+async def pet_reply(chat_id, *, name, species, stage, hunger, happiness,
+                    user_name, text, context_lines=None):
+    """A short in-character reply from the chat's shared pet, or None (the
+    handler falls back to a canned reaction). Same philosophy as converse():
+    no static fallback here — the personality lives in the handler's bank."""
+    if not ENABLED:
+        return None
+    key = (chat_id, "pet")
+    parts = [
+        f"Who you are right now: {name} the {species}, life stage {stage}. "
+        f"Hunger: {hunger}. Happiness: {happiness}."
+    ]
+    if context_lines:
+        parts.append(
+            "Recent conversation with your humans, oldest first:\n"
+            + "\n".join(context_lines)
+        )
+    if _recent[key]:
+        parts.append(
+            "Things you said recently (don't repeat yourself):\n- "
+            + "\n- ".join(_recent[key])
+        )
+    parts.append(f"Reply to this message from {user_name}:\n{text}")
+    request = _request(PET_SYSTEM, "\n\n".join(parts), 200)
+    try:
+        response = await asyncio.wait_for(request, timeout=TIMEOUT_SECONDS)
+        if response.stop_reason == "refusal":
+            log.warning("pet reply refused")
+            return None
+        reply = "".join(
+            block.text for block in response.content if block.type == "text"
+        ).strip()
+        if not reply:
+            return None
+        _recent[key].append(reply[:120])
+        return reply
+    except Exception:
+        log.exception("pet reply failed")
         return None
 
 
@@ -328,26 +408,7 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
             "Recently used in this chat (do something clearly different):\n- "
             + "\n- ".join(_recent[key])
         )
-    # Opus-5-tier models think by default (needs max_tokens headroom) and
-    # support effort + server-side refusal fallbacks; smaller/older models
-    # (e.g. claude-haiku-4-5, the cheap default) reject those parameters.
-    if config.AI_MODEL.startswith(("claude-opus-5", "claude-fable-5", "claude-mythos-5")):
-        request = _client.beta.messages.create(
-            model=config.AI_MODEL,
-            max_tokens=2000,
-            output_config={"effort": "low"},
-            betas=["server-side-fallback-2026-06-01"],
-            fallbacks=[{"model": "claude-opus-4-8"}],
-            system=SYSTEM,
-            messages=[{"role": "user", "content": "\n\n".join(parts)}],
-        )
-    else:
-        request = _client.messages.create(
-            model=config.AI_MODEL,
-            max_tokens=500,
-            system=SYSTEM,
-            messages=[{"role": "user", "content": "\n\n".join(parts)}],
-        )
+    request = _request(SYSTEM, "\n\n".join(parts), 500)
     try:
         response = await asyncio.wait_for(request, timeout=TIMEOUT_SECONDS)
         if response.stop_reason == "refusal":
