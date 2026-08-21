@@ -25,7 +25,7 @@ from telegram.ext import ContextTypes, MessageHandler, filters
 import ai
 import config
 import db
-from . import brain
+from . import birthday, brain
 from .common import GROUP_TYPES
 from .wordle import _streak as wordle_streak
 
@@ -131,6 +131,11 @@ def _standings(chat_id: int) -> str | None:
                 f"{m['first_name']}: {wins} wordle duel wins, "
                 f"current streak {wordle_streak(m['user_id'])}"
             )
+            if birthday.is_birthday_today(m["user_id"]):
+                lines.append(
+                    f"🎂 TODAY IS {m['first_name'].upper()}'S BIRTHDAY — "
+                    f"celebrate them relentlessly in every reply."
+                )
         return "\n".join(lines) or None
     except Exception:
         return None
@@ -161,7 +166,8 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not _limiter.allow(chat.id, now, today):
         return
 
-    operator = is_operator(user.id)
+    # The butler register is suspended on the operator's own birthday.
+    operator = is_operator(user.id) and not birthday.is_birthday_today(user.id)
 
     # Direct memory instructions ("@bot remember ...") are handled
     # deterministically — they must work even with no API key, and a

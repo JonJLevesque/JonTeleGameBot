@@ -180,6 +180,16 @@ def init(path: str) -> None:
             UNIQUE (chat_id, message_id)
         );
 
+        CREATE TABLE IF NOT EXISTS birthdays (
+            user_id         INTEGER PRIMARY KEY,
+            name            TEXT NOT NULL,
+            month           INTEGER NOT NULL,
+            day             INTEGER NOT NULL,
+            tz              TEXT NOT NULL,       -- IANA name, e.g. Asia/Kolkata
+            celebrated_year INTEGER NOT NULL DEFAULT 0,
+            reminded_year   INTEGER NOT NULL DEFAULT 0
+        );
+
         CREATE TABLE IF NOT EXISTS memories (
             id            INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id       INTEGER NOT NULL,
@@ -830,6 +840,38 @@ def shared_chats(user_a: int, user_b: int) -> list[int]:
         (user_a, user_b),
     ).fetchall()
     return [r["chat_id"] for r in rows]
+
+
+# ---------------------------------------------------------------- birthdays
+
+def set_birthday(user_id: int, name: str, month: int, day: int, tz: str) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO birthdays (user_id, name, month, day, tz) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT (user_id) DO UPDATE SET name = excluded.name, "
+            "  month = excluded.month, day = excluded.day, tz = excluded.tz",
+            (user_id, name, month, day, tz),
+        )
+
+
+def birthdays_all():
+    return _db().execute("SELECT * FROM birthdays").fetchall()
+
+
+def get_birthday(user_id: int):
+    return _db().execute(
+        "SELECT * FROM birthdays WHERE user_id = ?", (user_id,)
+    ).fetchone()
+
+
+def mark_birthday(user_id: int, field: str, year: int) -> None:
+    assert field in ("celebrated_year", "reminded_year")
+    with _db() as c:
+        c.execute(
+            f"UPDATE birthdays SET {field} = ? WHERE user_id = ?",
+            (year, user_id),
+        )
 
 
 # ----------------------------------------------------------------- memories

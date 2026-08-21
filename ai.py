@@ -147,6 +147,15 @@ CATEGORY_INSTRUCTIONS = {
         "intimacy stage given in the context, never colder, at most a half-step "
         "warmer. One sentence, no preamble."
     ),
+    "birthday": (
+        "Write a birthday tribute for the person named in the context — it "
+        "posts in the group chat at midnight in their timezone. 4-7 "
+        "sentences, addressed directly to them: warm, funny, and SPECIFIC — "
+        "lean hard on the known-facts list (their bits, their preferences, "
+        "their wins and crimes in this chat's games). Zero greeting-card "
+        "filler; affection through specificity. End with a one-line toast "
+        "starting with 🥂."
+    ),
     "roleplay": (
         "Write a roleplay setup: one scenario (1-2 sentences, a situation with "
         "built-in tension or absurdity) and one role per listed player. The roles "
