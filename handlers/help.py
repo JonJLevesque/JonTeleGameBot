@@ -17,8 +17,15 @@ HELP_TEXT = """\
 /cookie @user — award a cookie (or reply to their message with /cookie)
 /cookies [@user] — check a cookie balance (yours by default)
 /cookieboard — top cookie holders in this chat
+/daily — claim your daily cookies; consecutive days pay more 🔥
 /shop — the IOU shop: add real-world rewards, buy them with cookies
 /redeem id — cash cookies in for a reward (it goes on the record)
+Watch the skies: supply crates 🎁 drop when the chat is lively —
+first tap keeps the contents. Usually.
+
+<b>The casino</b> 🎰
+/slots stake — Telegram itself spins the reels; 7️⃣7️⃣7️⃣ pays 10x
+/blackjack stake — hit, stand or double against the house (3:2 on 21)
 
 <b>Board games</b> (challenge with @user, by replying, or open to anyone;
 add a number to wager cookies: /chess @rival 10 — winner takes the pot)
@@ -56,8 +63,15 @@ duration and it arrives months from now, when they least expect it
 /quote — reply to a legendary message to preserve it forever
 /memory [word] — resurface a random archived quote
 
+<b>Household</b> 🏠
+/pet — the chat's shared pet: adopt it, feed it (1 🍪), play with it,
+and do NOT let it starve — it will leave, and it will be dramatic
+/level — this chat's shared relationship level; everything you two do
+together feeds it
+
 <b>Other</b>
 /help — this message
+Also: reply to me or @mention me and I'll answer. I have opinions.
 
 Tip: I only learn who's in the chat when people send messages, so if
 /cookie @someone says I don't know them, reply to their message instead.
@@ -73,6 +87,11 @@ COMMAND_LIST = [
     ("cookie", "Award a cookie (@user or reply)"),
     ("cookies", "Check a cookie balance"),
     ("cookieboard", "Cookie leaderboard for this chat"),
+    ("daily", "Claim your daily cookies — streaks pay more"),
+    ("slots", "🎰 Spin for cookies (Telegram rolls the reels)"),
+    ("blackjack", "Blackjack vs the house — 3:2 on 21"),
+    ("pet", "The chat's shared pet — feed it or lose it 🐣"),
+    ("level", "The chat's shared relationship level 💞"),
     ("tictactoe", "Challenge someone to Tic-Tac-Toe"),
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),

@@ -13,6 +13,7 @@ from telegram.error import TelegramError
 from telegram.ext import Application, CommandHandler, ContextTypes
 
 import db
+from . import levels
 from .common import LOCAL_TZ, require_group
 from .bracket import remaining as beautiful_remaining
 from .wordle import _streak as wordle_streak
@@ -92,6 +93,12 @@ def _build(chat_id: int, update_snapshot: bool = False) -> str:
 
     if len(lines) == 1:
         lines.append("A quiet week… someone start something. 👀")
+    total_xp = levels.xp(chat_id)
+    lvl = levels.level_for_xp(total_xp)
+    lines.append(
+        f"\n💞 Level {lvl}: {levels.title(lvl)} — "
+        f"{total_xp:,}/{levels.xp_for_level(lvl + 1):,} XP"
+    )
     return "\n".join(lines)
 
 

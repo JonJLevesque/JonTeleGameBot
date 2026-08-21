@@ -180,6 +180,43 @@ def init(path: str) -> None:
             UNIQUE (chat_id, message_id)
         );
 
+        CREATE TABLE IF NOT EXISTS daily_claims (
+            chat_id  INTEGER NOT NULL,
+            user_id  INTEGER NOT NULL,
+            last_day TEXT NOT NULL,               -- ISO date of last claim
+            streak   INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (chat_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS drops (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id    INTEGER NOT NULL,
+            kind       TEXT NOT NULL,             -- crate | trap
+            amount     INTEGER NOT NULL,
+            claimed_by INTEGER,                   -- NULL until claimed
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS casino_hands (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id    INTEGER NOT NULL,
+            user_id    INTEGER NOT NULL,
+            stake      INTEGER NOT NULL,
+            state      TEXT NOT NULL,             -- JSON blob owned by handlers/casino.py
+            status     TEXT NOT NULL DEFAULT 'active',  -- active | finished
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS chat_levels (
+            chat_id         INTEGER PRIMARY KEY,
+            announced_level INTEGER NOT NULL DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS pets (
+            chat_id INTEGER PRIMARY KEY,
+            state   TEXT NOT NULL                 -- JSON blob owned by handlers/pet.py
+        );
+
         CREATE TABLE IF NOT EXISTS paranoia_rounds (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_id     INTEGER NOT NULL,
@@ -776,6 +813,176 @@ def shared_chats(user_a: int, user_b: int) -> list[int]:
         (user_a, user_b),
     ).fetchall()
     return [r["chat_id"] for r in rows]
+
+
+# ----------------------------------------------------- daily claims & drops
+
+def daily_claim(chat_id: int, user_id: int, today: str,
+                yesterday: str) -> tuple[bool, int]:
+    """Claim today's daily. Returns (claimed, streak): claimed is False when
+    already claimed today (streak is the current one); a claim the day after
+    the last one extends the streak, any longer gap resets it to 1."""
+    with _db() as c:
+        row = c.execute(
+            "SELECT last_day, streak FROM daily_claims "
+            "WHERE chat_id = ? AND user_id = ?",
+            (chat_id, user_id),
+        ).fetchone()
+        if row and row["last_day"] == today:
+            return False, row["streak"]
+        streak = row["streak"] + 1 if row and row["last_day"] == yesterday else 1
+        c.execute(
+            "INSERT INTO daily_claims (chat_id, user_id, last_day, streak) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (chat_id, user_id) DO UPDATE SET "
+            "  last_day = excluded.last_day, streak = excluded.streak",
+            (chat_id, user_id, today, streak),
+        )
+    return True, streak
+
+
+def create_drop(chat_id: int, kind: str, amount: int) -> int:
+    with _db() as c:
+        cur = c.execute(
+            "INSERT INTO drops (chat_id, kind, amount) VALUES (?, ?, ?)",
+            (chat_id, kind, amount),
+        )
+    return cur.lastrowid
+
+
+def claim_drop(drop_id: int, user_id: int):
+    """First-tap-wins: atomically claim a drop. Returns the drop row on
+    success, or None if someone else got there first (or it doesn't exist)."""
+    with _db() as c:
+        cur = c.execute(
+            "UPDATE drops SET claimed_by = ? "
+            "WHERE id = ? AND claimed_by IS NULL",
+            (user_id, drop_id),
+        )
+        if cur.rowcount == 0:
+            return None
+    return _db().execute(
+        "SELECT * FROM drops WHERE id = ?", (drop_id,)
+    ).fetchone()
+
+
+# --------------------------------------------------------------------- casino
+
+def create_casino_hand(chat_id: int, user_id: int, stake: int,
+                       state: dict) -> int:
+    with _db() as c:
+        cur = c.execute(
+            "INSERT INTO casino_hands (chat_id, user_id, stake, state) "
+            "VALUES (?, ?, ?, ?)",
+            (chat_id, user_id, stake, json.dumps(state)),
+        )
+    return cur.lastrowid
+
+
+def get_casino_hand(hand_id: int):
+    return _db().execute(
+        "SELECT * FROM casino_hands WHERE id = ?", (hand_id,)
+    ).fetchone()
+
+
+def active_casino_hand(chat_id: int, user_id: int):
+    return _db().execute(
+        "SELECT * FROM casino_hands WHERE chat_id = ? AND user_id = ? "
+        "AND status = 'active' ORDER BY id DESC LIMIT 1",
+        (chat_id, user_id),
+    ).fetchone()
+
+
+def update_casino_hand(hand_id: int, *, state: dict | None = None,
+                       status: str | None = None) -> None:
+    sets, args = [], []
+    if state is not None:
+        sets.append("state = ?"); args.append(json.dumps(state))
+    if status is not None:
+        sets.append("status = ?"); args.append(status)
+    args.append(hand_id)
+    with _db() as c:
+        c.execute(f"UPDATE casino_hands SET {', '.join(sets)} WHERE id = ?", args)
+
+
+# ---------------------------------------------------------------- XP & levels
+
+def xp_stats(chat_id: int) -> dict:
+    """Raw lifetime activity counts for the chat's shared level. The level
+    handler owns the weights; this just counts. Whisper/wordle counts join
+    through known_users, so in the (unlikely) multi-group case a member's
+    DM-based activity counts toward every chat they're in."""
+    q = _db().execute
+    n = lambda sql, *a: q(sql, a).fetchone()[0]  # noqa: E731
+    dq = q("SELECT idx FROM dailyq WHERE chat_id = ?", (chat_id,)).fetchone()
+    return {
+        "games": n(
+            "SELECT COUNT(*) FROM games WHERE chat_id = ? "
+            "AND status = 'finished' AND state IS NOT NULL", chat_id),
+        "wordle": n(
+            "SELECT COUNT(*) FROM wordle_plays p JOIN known_users k "
+            "ON k.user_id = p.user_id AND k.chat_id = ? WHERE p.done = 1",
+            chat_id),
+        "quotes": n("SELECT COUNT(*) FROM quotes WHERE chat_id = ?", chat_id),
+        "whispers": n(
+            "SELECT COUNT(*) FROM whispers w WHERE w.status = 'delivered' "
+            "AND EXISTS (SELECT 1 FROM known_users k WHERE k.chat_id = ? "
+            "AND k.user_id = w.sender_id)", chat_id),
+        "taboo": n(
+            "SELECT COUNT(*) FROM taboo_rounds WHERE chat_id = ? "
+            "AND stage = 'done'", chat_id),
+        "paranoia": n(
+            "SELECT COUNT(*) FROM paranoia_rounds WHERE chat_id = ? "
+            "AND stage = 'done'", chat_id),
+        "cookie_moves": n(
+            "SELECT COUNT(*) FROM cookie_log WHERE chat_id = ?", chat_id),
+        "dailyq": dq["idx"] if dq else 0,
+    }
+
+
+def get_announced_level(chat_id: int) -> int:
+    row = _db().execute(
+        "SELECT announced_level FROM chat_levels WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return row["announced_level"] if row else 0
+
+
+def set_announced_level(chat_id: int, level: int) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO chat_levels (chat_id, announced_level) VALUES (?, ?) "
+            "ON CONFLICT (chat_id) DO UPDATE SET "
+            "  announced_level = excluded.announced_level",
+            (chat_id, level),
+        )
+
+
+# ------------------------------------------------------------------ shared pet
+
+def get_pet(chat_id: int) -> dict | None:
+    row = _db().execute(
+        "SELECT state FROM pets WHERE chat_id = ?", (chat_id,)
+    ).fetchone()
+    return json.loads(row["state"]) if row else None
+
+
+def save_pet(chat_id: int, state: dict) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO pets (chat_id, state) VALUES (?, ?) "
+            "ON CONFLICT (chat_id) DO UPDATE SET state = excluded.state",
+            (chat_id, json.dumps(state)),
+        )
+
+
+def clear_pet(chat_id: int) -> None:
+    with _db() as c:
+        c.execute("DELETE FROM pets WHERE chat_id = ?", (chat_id,))
+
+
+def all_pets() -> list[tuple[int, dict]]:
+    return [(r["chat_id"], json.loads(r["state"]))
+            for r in _db().execute("SELECT * FROM pets")]
 
 
 # --------------------------------------------------------------- quote wall
