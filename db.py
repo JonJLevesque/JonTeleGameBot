@@ -180,6 +180,13 @@ def init(path: str) -> None:
             UNIQUE (chat_id, message_id)
         );
 
+        CREATE TABLE IF NOT EXISTS tod_bags (
+            chat_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            bag     TEXT NOT NULL DEFAULT '[]',  -- JSON list of pending draws
+            PRIMARY KEY (chat_id, user_id)
+        );
+
         CREATE TABLE IF NOT EXISTS daily_claims (
             chat_id  INTEGER NOT NULL,
             user_id  INTEGER NOT NULL,
@@ -813,6 +820,25 @@ def shared_chats(user_a: int, user_b: int) -> list[int]:
         (user_a, user_b),
     ).fetchall()
     return [r["chat_id"] for r in rows]
+
+
+# ------------------------------------------------------- truth-or-dare bags
+
+def get_tod_bag(chat_id: int, user_id: int) -> list[str]:
+    row = _db().execute(
+        "SELECT bag FROM tod_bags WHERE chat_id = ? AND user_id = ?",
+        (chat_id, user_id),
+    ).fetchone()
+    return json.loads(row["bag"]) if row else []
+
+
+def set_tod_bag(chat_id: int, user_id: int, bag: list[str]) -> None:
+    with _db() as c:
+        c.execute(
+            "INSERT INTO tod_bags (chat_id, user_id, bag) VALUES (?, ?, ?) "
+            "ON CONFLICT (chat_id, user_id) DO UPDATE SET bag = excluded.bag",
+            (chat_id, user_id, json.dumps(bag)),
+        )
 
 
 # ----------------------------------------------------- daily claims & drops

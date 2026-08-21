@@ -52,13 +52,37 @@ async def _draw(category: str, update: Update, context: ContextTypes.DEFAULT_TYP
     return prompt
 
 
+TOD_BAG = ["truth", "truth", "dare", "dare"]
+
+
+def _bag_draw(bag: list[str]) -> tuple[str, list[str]]:
+    """Tetris-style bag randomness: each player draws truth/dare from a
+    shuffled bag of two of each, refilled when empty. A plain coin is fair
+    over infinity but streaky over an evening — the bag guarantees an even
+    split every four draws and never more than two of a kind in a row
+    (within a bag)."""
+    if not bag:
+        bag = TOD_BAG.copy()
+        random.shuffle(bag)
+    choice = bag.pop()
+    return choice, bag
+
+
 async def truth_or_dare(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    name = update.effective_user.first_name
-    if random.random() < 0.5:
-        prompt = await _draw("truth", update, context)
+    user = update.effective_user
+    chat_id = update.effective_chat.id
+    arg = (context.args[0].lower() if context.args else "")
+    if arg.startswith(("t", "d")):
+        # An explicit pick is an override; it doesn't consume the bag.
+        kind = "truth" if arg.startswith("t") else "dare"
+    else:
+        kind, bag = _bag_draw(db.get_tod_bag(chat_id, user.id))
+        db.set_tod_bag(chat_id, user.id, bag)
+    prompt = await _draw(kind, update, context)
+    name = html.escape(user.first_name)
+    if kind == "truth":
         text = f"🗣 <b>Truth</b> for {name}:\n{html.escape(prompt)}"
     else:
-        prompt = await _draw("dare", update, context)
         text = f"🔥 <b>Dare</b> for {name}:\n{html.escape(prompt)}"
     await update.effective_message.reply_html(text)
 

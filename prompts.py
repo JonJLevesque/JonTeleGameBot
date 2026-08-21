@@ -187,13 +187,16 @@ TRUTHS_SPICY_GROUP = [
 ]
 
 TRUTHS_SPICY_DUO = [
-    "Have you ever had even a two-minute crush on {subject}? Answer fast — hesitation counts.",
-    "What did you actually think the first time you saw {subject}'s profile picture?",
-    "What's {subject}'s single most attractive quality? One answer.",
-    "How many times a day do you check whether {subject} has texted?",
-    "What's a message from {subject} you've reread more than once?",
-    "Describe {subject} in exactly three words.",
-    "What's the smoothest thing {subject} has ever said to you?",
+    "What was {subject} wearing the last time you couldn't stop staring? Be exact.",
+    "What's one thing {subject} does — that they don't know they do — that drives you a little crazy?",
+    "When was the last time you wanted to kiss {subject} and didn't? What stopped you?",
+    "Describe the last dream you had about {subject} that you never mentioned.",
+    "What's something you want {subject} to do more often? Say it plainly — hints don't count.",
+    "What do you think about when {subject} takes too long to text back at night?",
+    "What's the most attractive thing {subject} did this month — and did they know they were doing it?",
+    "What's one thing you've always wanted to hear {subject} say out loud?",
+    "Which was better: your first kiss with {subject} or your most recent one? Defend your answer.",
+    "What's a moment with {subject} you replay when you're alone?",
 ]
 
 DARES_SPICY = [
@@ -213,11 +216,16 @@ DARES_SPICY_GROUP = [
 ]
 
 DARES_SPICY_DUO = [
-    "Describe your ideal date night with {subject}, start to finish. Vague answers don't count.",
-    "Tell {subject} your favorite memory of the two of you, in full detail.",
-    "Describe {subject}'s smile in one sentence. You have to actually send it.",
-    "Send {subject} a voice message saying good night like you mean it.",
-    "Plan your next hangout with {subject} right now, in this chat, and actually set a date.",
+    "Voice message, slow and quiet: say {subject}'s name and nothing else.",
+    "Type out what you'd whisper to {subject} at 1am if they were right next to you. Send it.",
+    "Give {subject} three commands for tonight. They get to pick exactly one to obey.",
+    "Describe your next kiss with {subject} — in advance, in detail. Congratulations, it's now a promise.",
+    "Tell {subject} the unedited version of what you thought the last time they got dressed up.",
+    "Send the compliment you've been sitting on because it felt like too much. Now.",
+    "Send a photo of the spot where you wish {subject} was right now.",
+    "Voice message: say 'come here' like you only get one take.",
+    "Tell {subject} exactly where you'd want their attention tonight, in one sentence, no emoji to hide behind.",
+    "Set a timer for tonight, tell {subject} what happens when it goes off, and mean it.",
 ]
 
 WOULD_YOU_RATHER_SPICY = [
@@ -235,10 +243,12 @@ WOULD_YOU_RATHER_SPICY_GROUP = [
 ]
 
 WOULD_YOU_RATHER_SPICY_DUO = [
-    "Would you rather re-live your first conversation with {subject}, or skip ahead five years to see where you two end up?",
-    "Would you rather cook dinner for {subject} while they watch and comment, or have them cook for you and not be allowed to help?",
     "Would you rather {subject} see your entire camera roll, or your entire search history?",
-    "Would you rather spend a whole day with {subject} in complete silence, or a whole day where neither of you is allowed to stop talking?",
+    "Would you rather a whole evening with {subject} where you can only communicate by touch, or one where you can't touch at all?",
+    "Would you rather tell {subject} your most embarrassing fantasy, or have them invent one for you and be required to hear it read aloud?",
+    "Would you rather {subject} describe exactly what they find attractive about you to your face for two full minutes, or never get to hear it?",
+    "Would you rather always have to say what you're really thinking when {subject} catches you staring, or lose staring privileges for a month?",
+    "Would you rather {subject} pick your next date night with no veto, or plan it yourself but they read your search history from the planning?",
 ]
 
 # ------------------------------------------------------------------- roleplay

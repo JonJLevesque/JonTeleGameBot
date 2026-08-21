@@ -100,15 +100,21 @@ CATEGORY_INSTRUCTIONS = {
         "enough that there's no wriggle room."
     ),
     "wyr": (
-        "Write one 'Would you rather' dilemma. What makes a good one: both "
-        "options carry a real, concrete cost — if a reasonable person answers "
-        "instantly, it's a bad dilemma. Specificity is everything: 'reply to "
-        "every text within ten seconds, forever' beats 'be fast at texting'. "
-        "Under 30 words. Rotate flavors between rounds: petty everyday "
-        "inconveniences with permanent stakes, revealing personal trade-offs "
-        "(comfort vs pride, honesty vs peace), and absurd-but-consequential. "
-        "Banned clichés: horse-sized duck, teleport-but-naked, know how vs "
-        "when you die, and anything else from a top-10 icebreaker listicle."
+        "Write one 'Would you rather' dilemma. The one test that matters: "
+        "BOTH options must carry a real, concrete, comparable cost — if 9 "
+        "out of 10 people would pick the same side, throw it away and start "
+        "over. Costs must be enforceable-feeling and picturable: lost time, "
+        "lost money, public embarrassment with a named audience, a forfeit "
+        "that could actually happen tonight. BANNED as stakes: vague "
+        "perception outcomes ('they think you're boring', 'seem less cool') "
+        "and anything that costs nothing to accept. Specificity is "
+        "everything: 'reply to every text within ten seconds, forever' "
+        "beats 'be fast at texting'. Under 30 words. Rotate flavors between "
+        "rounds: petty everyday inconveniences with permanent stakes, "
+        "revealing personal trade-offs (comfort vs pride, honesty vs "
+        "peace), and absurd-but-consequential. Banned clichés: horse-sized "
+        "duck, teleport-but-naked, know how vs when you die, and anything "
+        "else from a top-10 icebreaker listicle."
     ),
     "paranoia": (
         "Write one Paranoia question — it will be shown secretly to one player, "
@@ -170,9 +176,21 @@ def _context_lines(*, duo, spicy, user_name, subject, names):
         lines.append("Players to cast, in order: " + ", ".join(names) + ".")
     if spicy:
         lines.append(
-            "Spicy mode is on and everyone is an adult: flirty and bold is good, "
-            "tension is good. Suggestive, never explicit."
+            "Spicy mode is on and everyone is a consenting adult. Flirty is "
+            "the floor, not the ceiling: desire, tension, memory and bodies "
+            "are all in bounds — be direct, not coy. Stop short of graphic "
+            "anatomy or blow-by-blow acts; charged and sensual beats "
+            "clinical every time."
         )
+        if duo:
+            lines.append(
+                "Two people + spicy means an established couple, not "
+                "strangers working up the nerve: skip crush-discovery "
+                "questions (they already know) and go for what they want, "
+                "what they remember, and what they haven't dared to say — "
+                "anticipation, standing invitations, promises for later "
+                "tonight."
+            )
     else:
         lines.append("Keep it fully family-friendly.")
     return lines
