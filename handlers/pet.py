@@ -23,7 +23,7 @@ import ai
 import db
 from .common import LOCAL_TZ, require_group
 
-SPECIES = ["🐱", "🐶", "🐢", "🦊", "🐸", "🐙", "🦔", "🐧", "🐰", "🦆"]
+SPECIES = ["🐱", "🐶", "🐢", "🦊", "🐸", "🐙", "🦔", "🐧", "🐰", "🦆", "🦢"]
 
 HUNGER_PER_HOUR = 2.5    # rises toward 100 (starving)
 HAPPY_PER_HOUR = 1.5     # falls toward 0 (despondent)
