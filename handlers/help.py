@@ -41,6 +41,8 @@ Every board has 🏳️ Resign; finished boards offer a 🔄 Rematch.
 winners advance until one place rules the world (status | reset)
 /tournament Title: a, b, c — knockout bracket for ANY list (movies,
 date ideas, baby names…), same two-vote rules
+/trivia [topic] — quiz poll: correct answers earn 🍪, fastest gets
+a bonus (name a topic and the question obliges)
 /whereami — mystery photo, guess the country, correct = 🍪
 /settle the argument — the court rules, decisively (or reply with /settle)
 
@@ -102,6 +104,7 @@ COMMAND_LIST = [
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),
     ("chess", "Challenge someone to Chess"),
+    ("trivia", "Quiz poll — correct answers earn 🍪 🧠"),
     ("beautiful", "World's Most Beautiful Place photo knockout"),
     ("wordle", "Daily NYT Wordle duel (DM me to play)"),
     ("dailyq", "Daily question ritual (on|now|off)"),

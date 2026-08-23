@@ -213,7 +213,7 @@ def status_card(state: dict, now: float) -> str:
     )
     lines = [
         f"{emoji} <b>{name}</b> — {label}, {age}",
-        f"<code>Hunger:    {bar(state['hunger'])}</code> {hunger_mood(state['hunger'])}",
+        f"<code>Hunger:    {bar(100 - state['hunger'])}</code> {hunger_mood(state['hunger'])}",
         f"<code>Happiness: {bar(state['happiness'])}</code> {happiness_mood(state['happiness'])}",
     ]
     if state["fed_by"]:

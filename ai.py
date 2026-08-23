@@ -189,6 +189,21 @@ CATEGORY_INSTRUCTIONS = {
         "filler; affection through specificity. End with a one-line toast "
         "starting with 🥂."
     ),
+    "trivia": (
+        "Write one multiple-choice trivia question. Output EXACTLY five "
+        "lines: line 1 the question (under 250 characters), then the four "
+        "answer options (each under 90 characters), one per line, with the "
+        "single correct option prefixed with '*'. No letters, numbers or "
+        "bullets before the options. The question must be objective, "
+        "verifiable real-world knowledge with exactly one defensibly "
+        "correct answer — never opinion, never a trick, and the wrong "
+        "options must be plausible enough to tempt someone. Exception to "
+        "the house rules for this category only: this is about the world, "
+        "not the chat — historical and public figures ARE allowed, and "
+        "known facts about chat members must be ignored. Vary the topic "
+        "between rounds: history, science, geography, pop culture, food, "
+        "sport, language, tech."
+    ),
     "roleplay": (
         "Write a roleplay setup: one scenario (1-2 sentences, a situation with "
         "built-in tension or absurdity) and one role per listed player. The roles "
