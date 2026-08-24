@@ -403,8 +403,13 @@ async def generate(category, chat_id, *, duo=False, spicy=False,
             "“come here” as complete sentences. The other gets the babygirl "
             "energy — sweet, bratty, testing the rules on purpose, losing on "
             "purpose. Use the words daddy/babygirl when they land naturally. "
-            "Decide freely which player gets which role (vary it). Charged "
-            "and suggestive, never explicit."
+            "Cast carefully: the daddy role goes to whichever of the two it "
+            "genuinely fits — go by everything you know about these people "
+            "(their names, the known facts below, how they come across) and "
+            "never flip it for variety; getting this backwards ruins the "
+            "prompt. Write the scenario so the daddy is the one steering and "
+            "the babygirl the one testing them, and make the cast list match "
+            "the prose. Charged and suggestive, never explicit."
         )
     if extra:
         parts.append(extra)
