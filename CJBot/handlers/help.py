@@ -19,7 +19,9 @@ HELP_TEXT = """\
 /cookieboard — top cookie holders in this chat
 /daily — claim your daily cookies; consecutive days pay more 🔥
 /shop — the IOU shop: add real-world rewards, buy them with cookies
-/redeem id — cash cookies in for a reward (it goes on the record)
+/redeem id — cash cookies in for a reward (it becomes an IOU on the record)
+/iou @user a coffee — they owe you · /iou owe @user dinner — you owe them
+/ious — the open ledger · /iou paid id · /iou nudge id · /iou cancel id
 Watch the skies: supply crates 🎁 drop when the chat is lively —
 first tap keeps the contents. Usually.
 
@@ -115,6 +117,8 @@ COMMAND_LIST = [
     ("settle", "The court rules on your argument"),
     ("shop", "IOU shop: cookies for real rewards"),
     ("redeem", "Buy a shop reward with cookies"),
+    ("iou", "Put a debt on the record"),
+    ("ious", "Who owes whom what"),
     ("recap", "Weekly Sunday scoreboard (on|now|off)"),
     ("tell", "DM me a message; I deliver it for you 🕊️"),
     ("capsule", "Seal a time capsule for months from now 📜"),

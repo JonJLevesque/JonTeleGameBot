@@ -5,6 +5,7 @@ on Sundays: the week's Wordle duels and streaks, cookie movement, Beautiful
 Place bracket progress, board games played, and the daily-question count.
 """
 import html
+import time as _time
 import logging
 from datetime import date, datetime, time, timedelta, timezone
 
@@ -99,6 +100,17 @@ def _build(chat_id: int, update_snapshot: bool = False) -> str:
     dq = db.dailyq_get(chat_id)
     if dq:
         lines.append(f"💬 Daily questions asked so far: {dq['idx']}")
+
+    open_ious = db.iou_open(chat_id)
+    paid = db.iou_settled_since(chat_id, _time.time() - 7 * 86400)
+    if open_ious or paid:
+        oldest = min(open_ious, key=lambda r: r["created_at"]) if open_ious else None
+        line = f"🧾 IOUs: {len(open_ious)} open, {paid} paid this week"
+        if oldest:
+            days = int((_time.time() - oldest["created_at"]) // 86400)
+            line += (f" — oldest: {html.escape(oldest['debtor_name'])} owes "
+                     f"{html.escape(oldest['text'])} ({days}d)")
+        lines.append(line)
 
     if len(lines) == 1:
         lines.append("A quiet week… someone start something. 👀")

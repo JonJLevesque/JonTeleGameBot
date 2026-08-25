@@ -115,6 +115,22 @@ def init(path: str) -> None:
             reward  TEXT NOT NULL
         );
 
+        CREATE TABLE IF NOT EXISTS ious (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id       INTEGER NOT NULL,
+            debtor_id     INTEGER,            -- NULL: owed by "the chat"
+            debtor_name   TEXT NOT NULL,
+            creditor_id   INTEGER NOT NULL,
+            creditor_name TEXT NOT NULL,
+            text          TEXT NOT NULL,
+            source        TEXT NOT NULL,      -- 'shop' | 'manual'
+            created_at    REAL NOT NULL,
+            settled_at    REAL,
+            settled_by    INTEGER,
+            last_nudge    REAL
+        );
+        CREATE INDEX IF NOT EXISTS ious_open ON ious (chat_id, settled_at);
+
         CREATE TABLE IF NOT EXISTS recap_chats (
             chat_id        INTEGER PRIMARY KEY,
             last_beautiful INTEGER NOT NULL DEFAULT 0
@@ -258,6 +274,8 @@ def init(path: str) -> None:
     _ensure_column("whispers", "deliver_at", "TEXT")
     _ensure_column("whispers", "kind", "TEXT NOT NULL DEFAULT 'whisper'")
     _ensure_column("whispers", "teased", "INTEGER NOT NULL DEFAULT 0")
+    _ensure_column("shop_items", "owner_id", "INTEGER")
+    _ensure_column("shop_items", "owner_name", "TEXT")
     _conn.commit()
 
 
@@ -360,13 +378,80 @@ def cookie_leaderboard(chat_id: int, limit: int = 10):
 
 # ----------------------------------------------------------------- IOU shop
 
-def shop_add(chat_id: int, price: int, reward: str) -> int:
+def shop_add(chat_id: int, price: int, reward: str,
+             owner_id: int | None = None, owner_name: str | None = None) -> int:
+    """owner = who added the reward and therefore delivers it when redeemed."""
     with _db() as c:
         cur = c.execute(
-            "INSERT INTO shop_items (chat_id, price, reward) VALUES (?, ?, ?)",
-            (chat_id, price, reward),
+            "INSERT INTO shop_items (chat_id, price, reward, owner_id, owner_name) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (chat_id, price, reward, owner_id, owner_name),
         )
     return cur.lastrowid
+
+
+# ------------------------------------------------------------------- IOUs
+
+def iou_add(chat_id: int, debtor_id: int | None, debtor_name: str,
+            creditor_id: int, creditor_name: str, text: str, source: str,
+            now: float) -> int:
+    with _db() as c:
+        cur = c.execute(
+            "INSERT INTO ious (chat_id, debtor_id, debtor_name, creditor_id, "
+            "creditor_name, text, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (chat_id, debtor_id, debtor_name, creditor_id, creditor_name, text, source, now),
+        )
+    return cur.lastrowid
+
+
+def iou_get(chat_id: int, iou_id: int):
+    return _db().execute(
+        "SELECT * FROM ious WHERE chat_id = ? AND id = ?", (chat_id, iou_id)
+    ).fetchone()
+
+
+def iou_open(chat_id: int):
+    return _db().execute(
+        "SELECT * FROM ious WHERE chat_id = ? AND settled_at IS NULL ORDER BY created_at",
+        (chat_id,),
+    ).fetchall()
+
+
+def iou_settle(chat_id: int, iou_id: int, by: int, now: float) -> bool:
+    with _db() as c:
+        cur = c.execute(
+            "UPDATE ious SET settled_at = ?, settled_by = ? "
+            "WHERE chat_id = ? AND id = ? AND settled_at IS NULL",
+            (now, by, chat_id, iou_id),
+        )
+    return cur.rowcount > 0
+
+
+def iou_delete(chat_id: int, iou_id: int) -> bool:
+    with _db() as c:
+        cur = c.execute(
+            "DELETE FROM ious WHERE chat_id = ? AND id = ? AND settled_at IS NULL",
+            (chat_id, iou_id),
+        )
+    return cur.rowcount > 0
+
+
+def iou_nudge(chat_id: int, iou_id: int, now: float, cooldown: float) -> bool:
+    """Record a nudge unless one landed within `cooldown` seconds."""
+    with _db() as c:
+        cur = c.execute(
+            "UPDATE ious SET last_nudge = ? WHERE chat_id = ? AND id = ? "
+            "AND settled_at IS NULL AND (last_nudge IS NULL OR last_nudge <= ?)",
+            (now, chat_id, iou_id, now - cooldown),
+        )
+    return cur.rowcount > 0
+
+
+def iou_settled_since(chat_id: int, since: float) -> int:
+    return _db().execute(
+        "SELECT COUNT(*) FROM ious WHERE chat_id = ? AND settled_at >= ?",
+        (chat_id, since),
+    ).fetchone()[0]
 
 
 def shop_list(chat_id: int):
