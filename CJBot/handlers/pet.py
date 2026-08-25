@@ -52,6 +52,11 @@ WALK_HAPPY = 10
 WALK_HUNGER = 8
 WALK_COOLDOWN = 45 * 60
 WALK_GIFT_CHANCE = 0.15
+DIRT_PER_HOUR = 1.0        # grime creeps toward 100
+WALK_DIRT = 15             # puddles exist
+DIRTY_AT = 60              # grubby: affection lands with half the effect
+WASH_CLEAN_BELOW = 10      # already clean: no bath needed
+WASH_HAPPY = 3             # hates the bath, loves being fluffy: net positive
 SLEEP_HOURS = 8
 SLEEP_HUNGER_FACTOR = 0.5      # a sleeping pet burns half the calories
 WAKE_HAPPY = 5
@@ -81,7 +86,17 @@ _ADORE_EGG_SCENES = [
     "You cup the egg in both hands. It warms, and something inside settles closer to the shell.",
     "The egg hums faintly against your palm. It doesn't know what you are yet. It knows it likes you.",
 ]
-_ADORE_SLEEP_SCENES = [
+_ADORE_WASH_SCENES = [
+    "{name} endures the bath with the dignity of a wronged monarch, then zooms around the room at Mach 2. Fluffy.",
+    "{name} makes a sound during the rinse that will haunt you. Emerges gleaming and instantly forgives you.",
+    "{name} tries to climb out four times. Fails four times. Ends up spotless and smug about it.",
+    "Suds everywhere. Mostly on you. {name} is clean; the bathroom is a crime scene.",
+]
+_WASH_EGG_SCENES = [
+    "You polish the egg with a soft cloth until it shines. Something inside purrs.",
+]
+
+_SLEEP_SCENES = [
     "{name} sighs in its sleep and burrows deeper. Whatever it's dreaming got better.",
     "You stroke {name} once, gently. One ear twitches. The dream continues.",
 ]
@@ -118,6 +133,16 @@ _WALK_SOUVENIRS = [
     "{name} brings home a stick that is clearly too big. It will be kept.",
     "{name} returns with one (1) pebble and presents it like a diamond.",
     "{name} comes back smelling of somewhere it shouldn't have been.",
+]
+
+_WASH_SCENES = [
+    "{name} endures the bath with the dignity of a wronged monarch, then zooms around the room at Mach 2. Fluffy.",
+    "{name} makes a sound during the rinse that will haunt you. Emerges gleaming and instantly forgives you.",
+    "{name} tries to climb out four times. Fails four times. Ends up spotless and smug about it.",
+    "Suds everywhere. Mostly on you. {name} is clean; the bathroom is a crime scene.",
+]
+_WASH_EGG_SCENES = [
+    "You polish the egg with a soft cloth until it shines. Something inside purrs.",
 ]
 
 _SLEEP_SCENES = [
@@ -162,6 +187,7 @@ def new_pet(name: str, now: float, species: str | None = None) -> dict:
         "born": now,
         "hunger": 0.0,
         "happiness": 80.0,
+        "dirt": 0.0,
         "last_tick": now,
         "warned_day": None,
         "starved_since": None,
@@ -209,6 +235,7 @@ def tick(state: dict, now: float) -> dict:
     raw = state["hunger"] + HUNGER_PER_HOUR * (awake + asleep * SLEEP_HUNGER_FACTOR)
     state["hunger"] = min(100.0, raw)
     state["happiness"] = max(0.0, state["happiness"] - HAPPY_PER_HOUR * awake)
+    state["dirt"] = min(100.0, state.get("dirt", 0.0) + DIRT_PER_HOUR * awake)
     state["last_tick"] = now
     overshoot = max(0.0, raw - 100.0) / HUNGER_PER_HOUR
     _update_starvation(state, now, overshoot_hours=overshoot)
@@ -255,7 +282,7 @@ def play_wait(state: dict, now: float) -> float:
 def play(state: dict, now: float) -> str:
     if play_wait(state, now) > 0:
         return "cooldown"
-    state["happiness"] = min(100.0, state["happiness"] + PLAY_HAPPY)
+    state["happiness"] = min(100.0, state["happiness"] + affection(state, PLAY_HAPPY))
     state["hunger"] = min(100.0, state["hunger"] + PLAY_HUNGER)
     state["last_play"] = now
     _update_starvation(state, now)
@@ -273,6 +300,33 @@ def talk_boost(state: dict, now: float) -> bool:
     return True
 
 
+def is_dirty(state: dict) -> bool:
+    return state.get("dirt", 0.0) >= DIRTY_AT
+
+
+def affection(state: dict, amount: float) -> float:
+    """A grubby pet is too itchy to fully enjoy attention."""
+    return amount / 2 if is_dirty(state) else amount
+
+
+def wash(state: dict) -> str:
+    if state.get("dirt", 0.0) < WASH_CLEAN_BELOW:
+        return "clean"
+    state["dirt"] = 0.0
+    state["happiness"] = min(100.0, state["happiness"] + WASH_HAPPY)
+    return "ok"
+
+
+def dirt_mood(d: float) -> str:
+    if d < 20:
+        return "gleaming"
+    if d < DIRTY_AT:
+        return "a bit dusty"
+    if d < 85:
+        return "grubby"
+    return "a health hazard"
+
+
 def adore(state: dict, user_id: int, user_name: str, now: float) -> str:
     """Affection: free, but each person's cuddles only land every ADORE_COOLDOWN."""
     fans = state.setdefault("adored_by", {})
@@ -282,7 +336,7 @@ def adore(state: dict, user_id: int, user_name: str, now: float) -> str:
         return "cooldown"
     fan["last"] = now
     fan["count"] += 1
-    state["happiness"] = min(100.0, state["happiness"] + ADORE_HAPPY)
+    state["happiness"] = min(100.0, state["happiness"] + affection(state, ADORE_HAPPY))
     return "ok"
 
 
@@ -345,6 +399,7 @@ def walk(state: dict, now: float) -> str:
         return "cooldown"
     state["happiness"] = min(100.0, state["happiness"] + WALK_HAPPY)
     state["hunger"] = min(100.0, state["hunger"] + WALK_HUNGER)
+    state["dirt"] = min(100.0, state.get("dirt", 0.0) + WALK_DIRT)
     state["last_walk"] = now
     _update_starvation(state, now)
     return "ok"
@@ -421,6 +476,7 @@ def status_card(state: dict, now: float) -> str:
         f"{emoji} <b>{name}</b> — {label}, {age}",
         f"<code>Hunger:    {bar(100 - state['hunger'])}</code> {hunger_mood(state['hunger'])}",
         f"<code>Happiness: {bar(state['happiness'])}</code> {happiness_mood(state['happiness'])}",
+        f"<code>Clean:     {bar(100 - state.get('dirt', 0.0))}</code> {dirt_mood(state.get('dirt', 0.0))}",
     ]
     if state["fed_by"]:
         top = max(state["fed_by"].values(), key=lambda p: p["count"])
@@ -438,6 +494,8 @@ def status_card(state: dict, now: float) -> str:
     if is_asleep(state, now):
         mins = int(sleep_wait(state, now) // 60) + 1
         lines.append(f"💤 asleep — wakes in ~{mins} min")
+    if is_dirty(state):
+        lines.append(f"🧼 {name} is grubby and enjoying things less — /pet wash")
     if state["hunger"] >= WARN_AT:
         lines.append(f"😿 {name} needs food badly — /pet feed (1 🍪)")
     return "\n".join(lines)
@@ -693,6 +751,20 @@ async def pet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif random.random() < 0.3:
             text += "\n" + random.choice(_WALK_SOUVENIRS).format(name=safe)
         await msg.reply_html(text)
+    elif sub in ("wash", "bath", "bathe", "clean"):
+        if is_asleep(state, now):
+            await msg.reply_html(f"💤 You are not bathing a sleeping {safe}. That's how you get bitten.")
+            return
+        label, _ = stage_of(state, now)
+        if label == "egg":
+            await msg.reply_html("🥚 " + random.choice(_WASH_EGG_SCENES))
+            return
+        result = wash(state)
+        db.save_pet(chat_id, state)
+        if result == "clean":
+            await msg.reply_html(f"{safe} is already gleaming and backs away from the tub in slow horror. Not today.")
+            return
+        await msg.reply_html("🛁 " + random.choice(_WASH_SCENES).format(name=safe))
     elif sub in ("sleep", "nap", "bed"):
         result = put_to_sleep(state, now)
         db.save_pet(chat_id, state)
@@ -728,7 +800,7 @@ async def pet_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await msg.reply_text(
             "/pet — status · /pet adopt <name> · /pet feed (1 🍪) · /pet play · "
-            "/pet adore · /pet walk · /pet treat (2 🍪, daily) · /pet train <trick> (1 🍪) · "
+            "/pet adore · /pet walk · /pet wash · /pet treat (2 🍪, daily) · /pet train <trick> (1 🍪) · "
             "/pet trick · /pet sleep · /pet talk <message> · /pet parents · /pet rename <name>"
         )
 

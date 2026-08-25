@@ -209,3 +209,33 @@ def test_parents_board_merges_feeders_and_fans():
     p["fed_by"] = {"1": {"name": "A", "count": 3}, "2": {"name": "B", "count": 1}}
     p["adored_by"] = {"2": {"name": "Bee", "count": 5, "last": 0}, "3": {"name": "C", "count": 2, "last": 0}}
     assert pet.parents_board(p) == [("A", 3, 0), ("Bee", 1, 5), ("C", 0, 2)]
+
+
+def test_dirt_accrues_awake_only_and_walks_add():
+    p = _pet(dirt=0.0, last_tick=0.0)
+    pet.tick(p, 10 * 3600)
+    assert p["dirt"] == 10.0
+    pet.put_to_sleep(p, 10 * 3600)
+    pet.tick(p, 14 * 3600)
+    assert p["dirt"] == 10.0
+    p["asleep_until"] = None
+    pet.walk(p, 20 * 3600)
+    assert p["dirt"] == 10.0 + pet.WALK_DIRT
+
+
+def test_dirty_pet_enjoys_half_and_wash_resets():
+    p = _pet(dirt=70.0, happiness=50.0)
+    assert pet.adore(p, 1, "A", 0) == "ok"
+    assert p["happiness"] == 50.0 + pet.ADORE_HAPPY / 2
+    assert pet.wash(p) == "ok"
+    assert p["dirt"] == 0.0
+    assert p["happiness"] == 50.0 + pet.ADORE_HAPPY / 2 + pet.WASH_HAPPY
+    assert pet.wash(p) == "clean"
+    assert pet.play(p, 0) == "ok" and p["happiness"] > 50.0 + pet.ADORE_HAPPY / 2 + pet.WASH_HAPPY + pet.PLAY_HAPPY - 0.01
+
+
+def test_old_pets_without_dirt_field_load_fine():
+    p = _pet(); del p["dirt"]
+    pet.tick(p, T0 + 3600)
+    assert p["dirt"] == 1.0
+    assert "Clean:" in pet.status_card(p, T0 + 3600)
