@@ -1,0 +1,57 @@
+name = "vipbot"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Non-secret vars. Secrets (wrangler secret put): TG_BOT_TOKEN, TG_WEBHOOK_SECRET,
+# ANTHROPIC_API_KEY, ADMIN_USER_IDS, CALLBACK_HMAC_KEY, PROCESSOR_FAKE_SECRET
+[vars]
+ENVIRONMENT = "staging"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vipbot-staging"
+database_id = "03b62524-7b62-4d5c-b273-5467b7be4d3b"
+migrations_dir = "migrations"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "58147a923e5745c8bdb6c079edf01e09"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "vipbot-backups"
+
+[[queues.producers]]
+binding = "AI_JOBS"
+queue = "vipbot-ai-jobs"
+
+[[queues.producers]]
+binding = "TG_OPS"
+queue = "vipbot-tg-ops"
+
+[[queues.consumers]]
+queue = "vipbot-ai-jobs"
+max_batch_size = 5
+max_retries = 3
+
+[[queues.consumers]]
+queue = "vipbot-tg-ops"
+max_batch_size = 10
+max_retries = 5
+
+[durable_objects]
+bindings = [
+  { name = "CHAT_DO", class_name = "ChatDO" },
+  { name = "MEMBER_DO", class_name = "MemberDO" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatDO", "MemberDO"]
+
+[triggers]
+crons = ["*/5 * * * *", "0 * * * *", "30 3 * * *"]
+
+[observability]
+enabled = true
