@@ -49,7 +49,7 @@ def test_parse_instruction():
     assert parse_instruction("Please remember: the wifi password is taped to the router") == \
         ("remember", "the wifi password is taped to the router")
     assert parse_instruction("forget the olive thing") == \
-        ("forget", "the olive thing")
+        ("forget", "olive thing")
     # reminiscing, not an instruction
     assert parse_instruction("remember when we went to the lake?") is None
     assert parse_instruction("what do you remember about us?") is None
@@ -85,3 +85,50 @@ def test_strip_markers_caps_at_two_and_handles_none():
     assert facts == ["1", "2"]
     clean, facts = strip_markers("just a normal reply")
     assert clean == "just a normal reply" and facts == []
+
+
+# --------------------------------------------------- natural-language forgetting
+from handlers.brain import handle_forget  # noqa: E402
+
+
+def test_parse_forget_phrasings():
+    assert parse_instruction("erase the memory about the mall") == ("forget", "the mall")
+    assert parse_instruction("Delete what you know about grandma") == ("forget", "grandma")
+    assert parse_instruction("stop remembering the olive thing") == ("forget", "olive thing")
+    assert parse_instruction("wipe your memory") == ("forget_all", "")
+    assert parse_instruction("forget everything") == ("forget_all", "")
+    assert parse_instruction("forget everything you know about us") == ("forget_all", "")
+    assert parse_instruction("forget what I just said") == ("forget_last", "")
+    assert parse_instruction("forget that") == ("forget_last", "")
+    assert parse_instruction("delete memories 7/13/14/15") == ("forget_ids", "7 13 14 15")
+    assert parse_instruction("forget #7, #13 and 14") == ("forget_ids", "7 13 14")
+    assert parse_instruction("forget everything about the mall") == ("forget", "everything about the mall")
+
+
+def test_forget_by_words_and_scope(db):
+    db.add_memory(-1, "J is at the mall with grandma", "told")
+    db.add_memory(-1, "J corrected the mall info", "told")
+    db.add_memory(-1, "cherry hates olives", "told")
+    text, kb = handle_forget(-1, 9, "forget", "the mall")
+    assert "matches 2" in text and kb is not None
+    assert len(kb.inline_keyboard) == 3                      # two picks + "all of these"
+    assert all(b.callback_data.startswith("mem:9:") for row in kb.inline_keyboard for b in row)
+    text, kb = handle_forget(-1, 9, "forget", "everything about the mall")
+    assert "all 2" in text and kb is None
+    assert [r["text"] for r in db.memories_all(-1)] == ["cherry hates olives"]
+
+
+def test_forget_ids_last_and_all(db):
+    a = db.add_memory(-1, "one", "told")
+    b = db.add_memory(-1, "two", "told")
+    c = db.add_memory(-1, "three", "told")
+    text, _ = handle_forget(-1, 9, "forget_ids", f"{a} {b} 999")
+    assert "Forgotten 2" in text and "999" in text
+    text, _ = handle_forget(-1, 9, "forget_last", "")
+    assert "three" in text and db.memories_all(-1) == []
+    assert "empty" in handle_forget(-1, 9, "forget_all", "")[0]
+    db.add_memory(-1, "x", "told")
+    text, kb = handle_forget(-1, 9, "forget_all", "")
+    assert "Wipe all 1" in text and kb.inline_keyboard[0][0].callback_data == "mem:9:wipe:"
+    assert len(db.memories_all(-1)) == 1                     # nothing deleted until confirmed
+    assert db.delete_all_memories(-1) == 1

@@ -176,9 +176,12 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bare = msg.text.replace(f"@{context.bot.username}", "").strip()
         instruction = brain.parse_instruction(bare)
         if instruction:
-            await msg.reply_text(
-                brain.handle_instruction(chat.id, *instruction)
-            )
+            kind, payload = instruction
+            if kind == "remember":
+                await msg.reply_text(brain.handle_instruction(chat.id, kind, payload))
+            else:
+                text, kb = brain.handle_forget(chat.id, user.id, kind, payload)
+                await msg.reply_text(text, reply_markup=kb)
             _limiter.record(chat.id, now, today)
             _since_bot[chat.id] = 0
             return

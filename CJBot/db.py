@@ -10,6 +10,7 @@ and the single writer from blocking each other.
 """
 import glob
 import json
+import re
 import os
 import sqlite3
 import time
@@ -1014,10 +1015,50 @@ def delete_memory(chat_id: int, memory_id: int) -> bool:
 
 
 def find_memories(chat_id: int, hint: str):
-    return _db().execute(
+    """Memories mentioning the hint. Tries the whole phrase first, then every
+    significant word (3+ letters) together, so "forget the olive thing" still
+    finds "cherry hates olives"."""
+    rows = _db().execute(
         "SELECT * FROM memories WHERE chat_id = ? AND text LIKE ? ORDER BY id",
         (chat_id, f"%{hint}%"),
     ).fetchall()
+    if rows:
+        return rows
+    words = [w for w in re.findall(r"[a-z0-9']+", hint.lower())
+             if len(w) >= 3 and w not in _STOPWORDS]
+    if not words:
+        return []
+    return [r for r in memories_all(chat_id)
+            if all(w in r["text"].lower() for w in words)]
+
+
+_STOPWORDS = {"the", "that", "this", "thing", "about", "what", "you", "know",
+              "said", "told", "and", "for", "with", "everything", "all", "stuff"}
+
+
+def delete_memories(chat_id: int, ids: list[int]) -> int:
+    if not ids:
+        return 0
+    marks = ",".join("?" for _ in ids)
+    with _db() as c:
+        cur = c.execute(
+            f"DELETE FROM memories WHERE chat_id = ? AND id IN ({marks})",
+            (chat_id, *ids),
+        )
+    return cur.rowcount
+
+
+def delete_all_memories(chat_id: int) -> int:
+    with _db() as c:
+        cur = c.execute("DELETE FROM memories WHERE chat_id = ?", (chat_id,))
+    return cur.rowcount
+
+
+def latest_memory(chat_id: int):
+    return _db().execute(
+        "SELECT * FROM memories WHERE chat_id = ? ORDER BY id DESC LIMIT 1",
+        (chat_id,),
+    ).fetchone()
 
 
 def relevant_memories(chat_id: int, text: str = "", limit: int = 30) -> list[str]:

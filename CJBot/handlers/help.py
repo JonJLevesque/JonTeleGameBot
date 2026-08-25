@@ -81,7 +81,8 @@ together feeds it
 Also: reply to me or @mention me and I'll answer. I have opinions,
 and I remember things — tell me "remember …" and it's filed.
 /memories — everything I know about you two (transparency policy)
-/forget id — make me unknow one of them
+/forget id — make me unknow one of them (also /forget 7 13, /forget last,
+/forget all, or just tell me: “forget everything about the mall”)
 
 Tip: I only learn who's in the chat when people send messages, so if
 /cookie @someone says I don't know them, reply to their message instead.
@@ -103,7 +104,7 @@ COMMAND_LIST = [
     ("pet", "The chat's shared pet — feed it, talk to it 🐣"),
     ("level", "The chat's shared relationship level 💞"),
     ("memories", "Everything the bot knows about you 🧠"),
-    ("forget", "Delete one of the bot's memories"),
+    ("forget", "Delete memories: id(s), words, last, or all"),
     ("tictactoe", "Challenge someone to Tic-Tac-Toe"),
     ("reversi", "Challenge someone to Reversi"),
     ("checkers", "Challenge someone to Checkers"),
