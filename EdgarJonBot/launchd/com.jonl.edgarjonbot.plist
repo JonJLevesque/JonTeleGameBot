@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.jonl.edgarjonbot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/jonjl/Documents/GitHub/TelegramBot/.venv/bin/python</string>
+    <string>bot.py</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/jonjl/Documents/GitHub/TelegramBot/EdgarJonBot</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TELEGRAM_BOT_TOKEN</key><string>FILL_ME_IN</string>
+    <key>ANTHROPIC_API_KEY</key><string>FILL_ME_IN</string>
+    <key>BOT_ADMIN_ID</key><string>7351823375</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>/Users/jonjl/Library/Logs/edgarjonbot/launchd.log</string>
+  <key>StandardErrorPath</key><string>/Users/jonjl/Library/Logs/edgarjonbot/launchd.log</string>
+</dict>
+</plist>
