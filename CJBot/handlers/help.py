@@ -8,7 +8,7 @@ HELP_TEXT = """\
 <b>Party games</b>
 /truthordare — get a random truth or dare prompt
 /wouldyourather — get a random "would you rather" dilemma
-/paranoia [@user] — whisper a secret question to a player; they answer aloud, then flip the coin to see if it's revealed
+/paranoia [@user] — a secret question for you (or @user / reply to pick someone); answer aloud, then flip the coin to see if it's revealed
 /taboo — get a secret phrase and make the chat guess it in 3 clues, without using its key words (winner and describer earn a 🍪)
 /roleplay — random scenario + random roles for chat members to act out
 /spicymode on|off — admins: unlock Spicy🌶️ prompts for this chat

@@ -100,14 +100,14 @@ async def paranoia(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     sender = update.effective_user
 
-    # Target: replied-to user / @username arg, else a random known member.
+    # Target: replied-to user / @username arg; with neither, the person who
+    # called /paranoia is volunteering — the question goes to them.
     target_id, target_name = target_from_message(update, context)
     if target_id is None and target_name is not None:
         await update.effective_message.reply_text(target_name)  # resolution error
         return
     if target_id is None:
-        candidates = db.random_known_users(chat_id, exclude_ids=(), limit=1)
-        target_id, target_name = candidates[0] if candidates else (sender.id, sender.first_name)
+        target_id, target_name = sender.id, sender.first_name
 
     # Subject: a random member other than the target, if the question needs one.
     others = db.random_known_users(chat_id, exclude_ids=(target_id,), limit=1)
