@@ -32,4 +32,5 @@ export type TgOp =
   | { kind: "dm"; userId: number; text: string; parseMode?: "HTML" }
   | { kind: "broadcast"; text: string; parseMode?: "HTML"; actorId: number }
   | { kind: "group_message"; text: string; parseMode?: "HTML"; effectId?: string }
-  | { kind: "ephemeral"; chatId: number; userId: number; text: string; replyTo?: number };
+  | { kind: "ephemeral"; chatId: number; userId: number; text: string; replyTo?: number }
+  | { kind: "trivia_close"; roundId: number; winners: number[] };

@@ -5,7 +5,7 @@ import { loadConfig } from "../config";
 import { dm, ephemeral, groupSay, kick, unban } from "../services/telegram";
 import { closeTriviaRound } from "../handlers/games/trivia";
 
-export async function consumeTgOp(env: Env, ctx: ExecutionContext, op: TgOp | { kind: "trivia_close"; roundId: number; winners: number[] }) {
+export async function consumeTgOp(env: Env, ctx: ExecutionContext, op: TgOp) {
   const api = new Api(env.TG_BOT_TOKEN);
   const cfg = await loadConfig(env);
   switch (op.kind) {

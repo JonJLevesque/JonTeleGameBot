@@ -51,7 +51,7 @@ export class ChatDO extends DurableObject<Env> {
   async alarm() {
     const t = await this.closeTrivia();
     if (!t) return;
-    await this.env.TG_OPS.send({ kind: "trivia_close", roundId: t.roundId, winners: t.winners } as never);
+    await this.env.TG_OPS.send({ kind: "trivia_close", roundId: t.roundId, winners: t.winners });
   }
 
   /** Generic per-chat cooldown: true if allowed now (and records it). */
