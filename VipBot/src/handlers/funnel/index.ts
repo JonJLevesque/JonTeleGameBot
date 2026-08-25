@@ -8,7 +8,7 @@ import { isActive, type MemberSnapshot, type Rail } from "../../domain/membershi
 import { memberStub } from "../../do/MemberDO";
 import type { Env } from "../../env";
 import { PROCESSORS } from "../../services/payments/fake";
-import { dm, esc, starsSubscriptionLink } from "../../services/telegram";
+import { dm, ephemeral, esc, starsSubscriptionLink } from "../../services/telegram";
 import { setupReady } from "../membership/effects";
 import { storeLink } from "../membership/links";
 
@@ -22,6 +22,18 @@ const cb = (env: Env, payload: string) => signCb(env.CALLBACK_HMAC_KEY, CB_KIND,
 
 export function registerFunnel(bot: Bot<Ctx>) {
   const priv = bot.chatType("private");
+
+  bot.command("help", async (ctx) => {
+    const c = ctx.cfg;
+    const text =
+      `<b>${esc(c.communityName)}</b>\n\n` +
+      `<b>Membership</b>\n/start — join, or see your status\n\n` +
+      `<b>Every day</b>\n/claim — daily ${esc(c.pointsName)} (streaks pay more)\n/profile — level, ${esc(c.xpName)}, ${esc(c.pointsName)}, badges\n/leaderboard [xp|points|streak]\n\n` +
+      `<b>Play</b>\nChat to earn ${esc(c.xpName)}. Tap crates when they drop. Trivia at 20:00.\n/slots &lt;stake&gt; — in the games topic\n/give @user &lt;n&gt; — share ${esc(c.pointsName)}\n\n` +
+      `<b>Spend</b>\n/shop — titles, shoutouts, perks\n/tip &lt;stars&gt; — tip with Telegram Stars`;
+    if (ctx.chat?.type === "private") await ctx.reply(text, { parse_mode: "HTML" });
+    else if (ctx.from) await ephemeral(ctx.api, ctx.chat!.id, ctx.from.id, text);
+  });
 
   priv.command("start", async (ctx) => {
     const ref = parseRef(ctx.match);
