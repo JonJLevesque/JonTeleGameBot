@@ -992,6 +992,19 @@ def add_memory(chat_id: int, text: str, source: str,
     return cur.lastrowid
 
 
+def replace_memory(chat_id: int, memory_id: int, text: str) -> bool:
+    """Rewrite a fact in place (a correction supersedes, it doesn't stack)."""
+    text = " ".join(text.split())[:200]
+    if not text:
+        return False
+    with _db() as c:
+        cur = c.execute(
+            "UPDATE memories SET text = ? WHERE chat_id = ? AND id = ?",
+            (text, chat_id, memory_id),
+        )
+    return cur.rowcount > 0
+
+
 def memories_all(chat_id: int):
     return _db().execute(
         "SELECT * FROM memories WHERE chat_id = ? ORDER BY id", (chat_id,)

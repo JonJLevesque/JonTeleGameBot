@@ -13,6 +13,7 @@ plus a small dice roll). Without an API key it answers direct mentions
 from a tiny canned bank and never interjects. All limits are in-memory:
 a restart forgetting them is harmless.
 """
+import asyncio
 import random
 import time
 from collections import defaultdict, deque
@@ -185,6 +186,9 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _limiter.record(chat.id, now, today)
             _since_bot[chat.id] = 0
             return
+        if ai.ENABLED:
+            # Learn from what we were just told, in parallel with replying.
+            asyncio.create_task(brain.learn_now(chat.id, user.first_name, msg.text))
 
     if ai.ENABLED:
         await context.bot.send_chat_action(chat.id, ChatAction.TYPING)

@@ -10,6 +10,7 @@ A short per-chat history of recent prompts is kept in memory and passed to
 the model so consecutive rounds don't converge on the same ideas.
 """
 import asyncio
+import json
 import logging
 from collections import defaultdict, deque
 
@@ -46,6 +47,9 @@ Hard rules:
 crushes, exes, partners, contacts, or celebrities.
 - Dares must be doable inside Telegram: text, voice message, photo, profile \
 picture, DM to a chat member. Nothing requiring people to be in the same room.
+- You are the HOST, never a player. Address the person answering as "you" and \
+refer to everyone else by NAME. Never write "me", "I", "us", "we" or "let's" — \
+the bot is not in the game, so "tell me" is always wrong; "tell Cherry" is right.
 - Plain text only. No markdown, no emoji unless one genuinely lands."""
 
 PERSONA_SYSTEM = """\
@@ -459,6 +463,76 @@ Rules:
 - Each fact: third person, self-contained, under 150 characters.
 - Output one fact per line, nothing else. If nothing qualifies, output
   exactly: NONE"""
+
+
+LEARN_SYSTEM = """\
+You maintain the memory file of a small Telegram chat's party bot: short, durable \
+facts about the members (preferences, nicknames, in-jokes, plans, relationships, \
+running bits, corrections). You receive the current file (each line "#id: fact"), \
+a recent excerpt of the chat, and the message that just came in. Decide how the \
+file should change so it stays TRUE and current:
+- "add": new durable facts worth keeping (short, third person, names not "you"). \
+Never add chit-chat, one-off moods, or anything already in the file.
+- "replace": when a message CORRECTS or UPDATES an existing fact (moved, changed \
+their mind, "that was wrong", "not anymore"), rewrite that fact by id. Do not keep \
+both versions.
+- "remove": ids that the message shows are false, retracted, or that the person \
+asks not to be kept. Corrections about a fact's existence ("that intel was wrong") \
+mean remove, not add.
+Skip sensitive topics (health, money troubles, sexuality, politics, family conflict) \
+unless the person is plainly telling the bot to remember it.
+Reply with ONLY compact JSON: {"add": [..], "replace": [{"id": n, "text": ".."}], "remove": [n, ..]}. \
+Empty lists when nothing should change."""
+
+
+def parse_learning(text: str) -> dict | None:
+    """Tolerant JSON extraction for learn(); None when unusable."""
+    if not text:
+        return None
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        data = json.loads(text[start:end + 1])
+    except json.JSONDecodeError:
+        return None
+    out = {"add": [], "replace": [], "remove": []}
+    for f in data.get("add") or []:
+        if isinstance(f, str) and f.strip():
+            out["add"].append(f.strip())
+    for r in data.get("replace") or []:
+        if isinstance(r, dict) and isinstance(r.get("id"), int) and isinstance(r.get("text"), str) and r["text"].strip():
+            out["replace"].append({"id": r["id"], "text": r["text"].strip()})
+    for i in data.get("remove") or []:
+        if isinstance(i, int):
+            out["remove"].append(i)
+    return out
+
+
+async def learn(chat_id, *, existing, context_lines, speaker=None, text=None) -> dict | None:
+    """Ask how the memory file should change given new chat. `existing` is a
+    list of (id, text). Returns {"add", "replace", "remove"} or None."""
+    if not ENABLED:
+        return None
+    parts = ["Memory file:\n" + ("\n".join(f"#{i}: {t}" for i, t in existing) or "(empty)")]
+    if context_lines:
+        parts.append("Recent chat, oldest first:\n" + "\n".join(context_lines))
+    if text is not None:
+        who = speaker or "someone"
+        parts.append(f"Just now, {who} said to the bot:\n{text[:600]}")
+    try:
+        response = await asyncio.wait_for(
+            _client.messages.create(
+                model=config.AI_MODEL, max_tokens=600, system=LEARN_SYSTEM,
+                messages=[{"role": "user", "content": "\n\n".join(parts)}],
+            ),
+            timeout=TIMEOUT_SECONDS,
+        )
+        raw = "".join(b.text for b in response.content if b.type == "text")
+    except Exception:
+        log.exception("learn failed")
+        return None
+    return parse_learning(raw)
 
 
 async def harvest_memories(chat_id, context_lines, existing) -> list[str]:

@@ -29,8 +29,10 @@ from .common import GROUP_TYPES, require_group
 
 log = logging.getLogger("partybot.brain")
 
-HARVEST_MIN_MESSAGES = 25   # new messages required before a harvest runs
-HARVEST_DAILY_CAP = 6       # harvests per chat per day
+HARVEST_MIN_MESSAGES = 10   # new messages required before a harvest runs
+HARVEST_DAILY_CAP = 16      # harvests per chat per day
+HARVEST_INTERVAL = 1800     # seconds between harvest passes
+LEARN_CONTEXT = 12          # recent lines shown alongside an addressed message
 
 _window: dict[int, deque] = defaultdict(lambda: deque(maxlen=60))
 _fresh: dict[int, int] = defaultdict(int)          # messages since last harvest
@@ -261,6 +263,35 @@ async def observe(update: Update, context: ContextTypes.DEFAULT_TYPE):
     _fresh[chat.id] += 1
 
 
+def apply_learning(chat_id: int, result: dict, source: str) -> tuple[int, int, int]:
+    """Apply a learn() result to the file. Returns (added, replaced, removed)."""
+    known = {r["id"] for r in db.memories_all(chat_id)}
+    removed = sum(1 for i in result.get("remove", []) if i in known and db.delete_memory(chat_id, i))
+    replaced = sum(1 for r in result.get("replace", [])
+                   if r["id"] in known and db.replace_memory(chat_id, r["id"], r["text"]))
+    added = sum(1 for f in result.get("add", []) if db.add_memory(chat_id, f, source) is not None)
+    return added, replaced, removed
+
+
+async def learn_now(chat_id: int, speaker: str, text: str) -> None:
+    """Immediate learning when the bot is addressed: a fact told to it lands
+    (or corrects the file) within seconds, not at the next harvest."""
+    if not ai.ENABLED:
+        return
+    existing = [(r["id"], r["text"]) for r in db.memories_all(chat_id)]
+    context = list(_window[chat_id])[-LEARN_CONTEXT:]
+    try:
+        result = await ai.learn(chat_id, existing=existing, context_lines=context,
+                                speaker=speaker, text=text)
+    except Exception:
+        log.exception("learn_now failed for chat %s", chat_id)
+        return
+    if result:
+        a, r, d = apply_learning(chat_id, result, "told")
+        if a or r or d:
+            log.info("learned for chat %s: +%d ~%d -%d", chat_id, a, r, d)
+
+
 async def _harvest_job(context: ContextTypes.DEFAULT_TYPE):
     if not ai.ENABLED:
         return
@@ -273,21 +304,21 @@ async def _harvest_job(context: ContextTypes.DEFAULT_TYPE):
             continue
         _fresh[chat_id] = 0
         _harvests[chat_id] = (today, n + 1 if day == today else 1)
-        existing = [r["text"] for r in db.memories_all(chat_id)]
+        existing = [(r["id"], r["text"]) for r in db.memories_all(chat_id)]
         try:
-            facts = await ai.harvest_memories(chat_id, list(window), existing)
+            result = await ai.learn(chat_id, existing=existing, context_lines=list(window))
         except Exception:
             log.exception("harvest failed for chat %s", chat_id)
             continue
-        for fact in facts:
-            db.add_memory(chat_id, fact, "observed")
-        if facts:
-            log.info("harvested %d memories for chat %s", len(facts), chat_id)
+        if result:
+            a, r, d = apply_learning(chat_id, result, "observed")
+            if a or r or d:
+                log.info("harvested for chat %s: +%d ~%d -%d", chat_id, a, r, d)
 
 
 def schedule(app) -> None:
     app.job_queue.run_repeating(
-        _harvest_job, interval=7200, first=600, name="memory-harvest"
+        _harvest_job, interval=HARVEST_INTERVAL, first=300, name="memory-harvest"
     )
 
 

@@ -132,3 +132,28 @@ def test_forget_ids_last_and_all(db):
     assert "Wipe all 1" in text and kb.inline_keyboard[0][0].callback_data == "mem:9:wipe:"
     assert len(db.memories_all(-1)) == 1                     # nothing deleted until confirmed
     assert db.delete_all_memories(-1) == 1
+
+
+# ------------------------------------------------------------ active learning
+import ai as _ai  # noqa: E402
+from handlers.brain import apply_learning  # noqa: E402
+
+
+def test_parse_learning_tolerates_prose_and_junk():
+    assert _ai.parse_learning('Sure! {"add": ["J plays Wordle daily"], "replace": [{"id": 3, "text": "J is home"}], "remove": [7, "x"]}') == \
+        {"add": ["J plays Wordle daily"], "replace": [{"id": 3, "text": "J is home"}], "remove": [7]}
+    assert _ai.parse_learning("") is None
+    assert _ai.parse_learning("no json here") is None
+    assert _ai.parse_learning('{"add": []}') == {"add": [], "replace": [], "remove": []}
+
+
+def test_apply_learning_replaces_and_removes(db):
+    a = db.add_memory(-1, "J is at the mall with grandma", "observed")
+    b = db.add_memory(-1, "cherry hates olives", "told")
+    added, replaced, removed = apply_learning(-1, {
+        "add": ["J plays Wordle daily", "J is home from the mall"],   # second dups the replacement
+        "replace": [{"id": a, "text": "J is home from the mall"}, {"id": 999, "text": "ghost"}],
+        "remove": [b, 999],
+    }, "told")
+    assert (added, replaced, removed) == (1, 1, 1)
+    assert sorted(r["text"] for r in db.memories_all(-1)) == ["J is home from the mall", "J plays Wordle daily"]
