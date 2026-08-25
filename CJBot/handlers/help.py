@@ -67,7 +67,9 @@ duration and it arrives months from now, when they least expect it
 
 <b>Household</b> 🏠
 /pet — the chat's shared pet: adopt it, feed it (1 🍪), play with it,
-talk to it (/pet talk hi — it talks back once it's hatched), and do
+adore it, walk it, train it tricks (1 🍪), spoil it (/pet treat, 2 🍪),
+tuck it in (/pet sleep), talk to it (/pet talk hi — it talks back once
+it's hatched), see who parents hardest (/pet parents), and do
 NOT let it starve — it will leave, and it will be dramatic
 /level — this chat's shared relationship level; everything you two do
 together feeds it
