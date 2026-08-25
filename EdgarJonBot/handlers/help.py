@@ -40,7 +40,11 @@ file away ideas and facts (see /brain, /ideas). Sundays I post a recap.
 /reminders — pending · /reminder cancel &lt;id&gt;
 
 <b>Brain</b>
-/remember &lt;fact&gt; · /brain · /forget &lt;id&gt;
+I learn from whatever you say to me, on the spot — corrections replace old facts. \
+Or be explicit: “remember Edgar's on the ledger branch”, “forget the postgres \
+thing”, “forget everything about the mall”, “from now on, be shorter” (standing \
+instruction — I'll obey until you /forget it).
+/remember &lt;fact&gt; · /brain · /forget &lt;id|words|last|all&gt;
 
 <b>Tools</b>
 /tldr &lt;url&gt; · /settle &lt;the argument&gt; · /hottake [topic]

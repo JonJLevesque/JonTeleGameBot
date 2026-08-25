@@ -38,13 +38,17 @@ one-line question, no exclamation-point pileups, no "as an AI".
 Format: plain text. Short unless the question needs length. Code goes in \
 triple backticks. At most one emoji and only if it earns it."""
 
-EXTRACT_SCHEMA = {
+LEARN_SCHEMA = {
     "type": "object",
     "properties": {
         "ideas": {"type": "array", "items": {"type": "string"}},
         "facts": {"type": "array", "items": {"type": "string"}},
+        "replace": {"type": "array", "items": {"type": "object", "properties": {
+            "id": {"type": "integer"}, "text": {"type": "string"}}, "required": ["id", "text"], "additionalProperties": False}},
+        "remove": {"type": "array", "items": {"type": "integer"}},
+        "style": {"type": "array", "items": {"type": "string"}},
     },
-    "required": ["ideas", "facts"],
+    "required": ["ideas", "facts", "replace", "remove", "style"],
     "additionalProperties": False,
 }
 
@@ -96,7 +100,11 @@ def _json(resp) -> dict | None:
 
 def _chat_context(chat_id, text="", history=30) -> str:
     parts = []
-    known = db.relevant_facts(chat_id, text)
+    style = db.style_notes(chat_id)
+    if style:
+        parts.append("Standing instructions from Jon and Edgar about how you should behave — "
+                     "these override your defaults:\n- " + "\n- ".join(style))
+    known = [f for f in db.relevant_facts(chat_id, text) if f not in style]
     if known:
         parts.append("Things you know about them and their projects:\n- " + "\n- ".join(known))
     ideas = [r["text"] for r in db.ideas(chat_id, limit=15)]
@@ -132,28 +140,37 @@ async def reply(chat_id, *, user_name, text, unprompted=False) -> str | None:
 
 # ------------------------------------------------------- passive listening
 
-async def extract(chat_id, rows) -> dict | None:
-    """Pull ideas and durable facts out of a batch of chat messages."""
-    transcript = "\n".join(f"{r['name']}: {r['text']}" for r in rows)
+async def learn(chat_id, *, rows=(), speaker=None, text=None) -> dict | None:
+    """Decide how the notebook should change. Used both for the immediate pass
+    when the bot is addressed (speaker+text) and for the periodic distill (rows).
+    Returns {ideas, facts, replace, remove, style} or None."""
+    existing = [(r["id"], r["text"], r["source"]) for r in db.facts(chat_id, limit=200)]
     existing_ideas = db.idea_texts(chat_id)[:100]
-    existing_facts = [r["text"] for r in db.facts(chat_id, limit=100)]
+    transcript = "\n".join(f"{r['name']}: {r['text']}" for r in rows)
     prompt = (
-        "You quietly listen to a chat between two developer friends and keep "
-        "their notebook. From the transcript below, extract:\n"
-        "1. ideas — things they said they should build, try, or look into "
-        "(\"we should…\", \"what if…\", \"someday…\"). Each one sentence, "
-        "concrete, in their words where possible.\n"
-        "2. facts — durable things worth remembering about them or their "
-        "projects: what they're working on, decisions made, tools chosen, "
-        "preferences, strong opinions, life events. Not passing chit-chat.\n"
-        "Be conservative: only what they'd want written down. Skip anything "
-        "already recorded below, or near-duplicates of it. Empty lists are fine.\n\n"
-        "Already recorded ideas:\n- " + ("\n- ".join(existing_ideas) or "(none)") +
-        "\n\nAlready recorded facts:\n- " + ("\n- ".join(existing_facts) or "(none)") +
-        f"\n\nTranscript:\n{transcript}"
+        "You keep the notebook of a chat between two developer friends, Jon and Edgar. "
+        "Given the current notebook and new conversation, decide how it should change:\n"
+        "- ideas: things they said they should build/try/look into, one sentence each, concrete.\n"
+        "- facts: durable things about them or their projects (what they're working on, decisions, "
+        "tools chosen, preferences, opinions, life events). Third person, names not 'you'. "
+        "Not chit-chat, not one-off moods.\n"
+        "- replace: when new information CORRECTS or UPDATES an existing fact (moved on, changed "
+        "their mind, 'that was wrong', 'not anymore'), rewrite that fact by id — never keep both.\n"
+        "- remove: ids that are now false, retracted, or that they ask not to be kept.\n"
+        "- style: standing instructions about how the BOT should behave, when someone addresses it "
+        "with one ('be shorter', 'stop using emoji', 'call me JL', 'always answer in Python') — "
+        "phrase as an imperative rule. Only when clearly meant as a lasting preference.\n"
+        "Be conservative. Skip anything already recorded or a near-duplicate. Empty lists are fine.\n\n"
+        "Notebook facts (id: text [kind]):\n" +
+        ("\n".join(f"#{i}: {t} [{k}]" for i, t, k in existing) or "(empty)") +
+        "\n\nRecorded ideas:\n- " + ("\n- ".join(existing_ideas) or "(none)")
     )
+    if transcript:
+        prompt += f"\n\nConversation, oldest first:\n{transcript}"
+    if text is not None:
+        prompt += f"\n\nJust now, {speaker or 'someone'} said to the bot:\n{text[:800]}"
     resp = await _create(
-        output_config={"effort": "low", "format": {"type": "json_schema", "schema": EXTRACT_SCHEMA}},
+        output_config={"effort": "low", "format": {"type": "json_schema", "schema": LEARN_SCHEMA}},
         messages=[{"role": "user", "content": prompt}],
     )
     return _json(resp)

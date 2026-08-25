@@ -199,18 +199,77 @@ def shipped_recent(chat_id, limit=15) -> list[sqlite3.Row]:
 
 # ------------------------------------------------------------------ facts
 
-def add_fact(chat_id, text, source) -> None:
+def add_fact(chat_id, text, source) -> int | None:
+    """Store a fact; near-duplicates (case-insensitive) are skipped."""
+    text = " ".join(text.split())[:200]
+    if not text:
+        return None
     with _db() as c:
-        c.execute(
+        if c.execute("SELECT 1 FROM facts WHERE chat_id = ? AND LOWER(text) = LOWER(?)", (chat_id, text)).fetchone():
+            return None
+        cur = c.execute(
             "INSERT INTO facts (chat_id, text, source, ts) VALUES (?, ?, ?, ?)",
             (chat_id, text, source, time.time()),
         )
+    return cur.lastrowid
 
 
 def facts(chat_id, limit=200) -> list[sqlite3.Row]:
     return _db().execute(
         "SELECT * FROM facts WHERE chat_id = ? ORDER BY id DESC LIMIT ?", (chat_id, limit)
     ).fetchall()
+
+
+def replace_fact(chat_id, fact_id, text) -> bool:
+    text = " ".join(text.split())[:200]
+    if not text:
+        return False
+    with _db() as c:
+        cur = c.execute("UPDATE facts SET text = ? WHERE chat_id = ? AND id = ?", (text, chat_id, fact_id))
+    return cur.rowcount > 0
+
+
+def delete_facts(chat_id, ids: list[int]) -> int:
+    if not ids:
+        return 0
+    marks = ",".join("?" for _ in ids)
+    with _db() as c:
+        cur = c.execute(f"DELETE FROM facts WHERE chat_id = ? AND id IN ({marks})", (chat_id, *ids))
+    return cur.rowcount
+
+
+def delete_all_facts(chat_id) -> int:
+    with _db() as c:
+        cur = c.execute("DELETE FROM facts WHERE chat_id = ?", (chat_id,))
+    return cur.rowcount
+
+
+def latest_fact(chat_id):
+    return _db().execute("SELECT * FROM facts WHERE chat_id = ? ORDER BY id DESC LIMIT 1", (chat_id,)).fetchone()
+
+
+_STOP = {"the", "that", "this", "thing", "about", "what", "you", "know", "said",
+         "told", "and", "for", "with", "everything", "all", "stuff"}
+
+
+def find_facts(chat_id, hint: str):
+    """Facts mentioning the phrase; else facts containing every significant word."""
+    import re
+    words = [w for w in re.findall(r"[a-z0-9']+", hint.lower()) if len(w) >= 3 and w not in _STOP]
+    phrase = " ".join(words) or hint.strip()
+    rows = _db().execute(
+        "SELECT * FROM facts WHERE chat_id = ? AND LOWER(text) LIKE ? ORDER BY id", (chat_id, f"%{phrase.lower()}%")
+    ).fetchall()
+    if not words:
+        return rows
+    by_words = [r for r in facts(chat_id, limit=500) if all(w in r["text"].lower() for w in words)]
+    return by_words if len(by_words) > len(rows) else rows
+
+
+def style_notes(chat_id) -> list[str]:
+    return [r["text"] for r in _db().execute(
+        "SELECT text FROM facts WHERE chat_id = ? AND source = 'style' ORDER BY id", (chat_id,)
+    ).fetchall()]
 
 
 def delete_fact(chat_id, fact_id) -> bool:

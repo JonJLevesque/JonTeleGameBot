@@ -9,10 +9,12 @@ from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
 
+import asyncio
+
 import ai
 import config
 import db
-from . import tools
+from . import brain, tools
 
 log = logging.getLogger("edgarjon.listener")
 _NAME_WORDS = [w for w in re.split(r"\W+", config.BOT_NAME.lower()) if len(w) > 2]
@@ -44,6 +46,17 @@ async def on_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     addressed = _addressed(update, context.bot.username)
+    if addressed:
+        bare = re.sub(rf"@{re.escape(context.bot.username)}", "", msg.text, flags=re.I)
+        bare = re.sub(rf"^\s*(?:hey|yo|ok|okay)?[\s,]*(?:{'|'.join(map(re.escape, _NAME_WORDS))})[\s,:.!-]*", "", bare, flags=re.I).strip()
+        instruction = brain.parse_instruction(bare)
+        if instruction:
+            text, kb = brain.handle_instruction(chat_id, user.id, *instruction)
+            await msg.reply_text(text, reply_markup=kb)
+            return
+        if ai.ENABLED:
+            asyncio.create_task(brain.learn_now(chat_id, user.first_name, msg.text))
+
     if addressed or random.random() < config.CHIME_IN_RATE:
         await context.bot.send_chat_action(chat_id, ChatAction.TYPING)
         text = await ai.reply(chat_id, user_name=user.first_name, text=msg.text,
@@ -61,18 +74,14 @@ async def distill(chat_id: int):
     rows = db.unprocessed_messages(chat_id)
     if not rows:
         return
-    result = await ai.extract(chat_id, rows)
+    result = await ai.learn(chat_id, rows=rows)
     if result is None:
         return  # leave unprocessed; retried on the next trigger
     db.mark_processed([r["id"] for r in rows])
     by = ", ".join(sorted({r["name"] for r in rows}))
-    for idea in result.get("ideas", []):
-        db.add_idea(chat_id, idea, by, "overheard")
-    for fact in result.get("facts", []):
-        db.add_fact(chat_id, fact, "overheard")
-    if result.get("ideas") or result.get("facts"):
-        log.info("distilled chat %s: %d ideas, %d facts", chat_id,
-                 len(result["ideas"]), len(result["facts"]))
+    a, r, d, i = brain.apply_learning(chat_id, result, "overheard", by)
+    if a or r or d or i:
+        log.info("distilled chat %s: +%d facts ~%d -%d, +%d ideas", chat_id, a, r, d, i)
 
 
 async def _idle_sweep(context: ContextTypes.DEFAULT_TYPE):

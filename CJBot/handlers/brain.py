@@ -51,7 +51,7 @@ _FORGET_RE = re.compile(
     r"(?:forget|erase|delete|wipe|scrub|drop|remove|unlearn|stop\s+remembering|"
     r"don'?t\s+remember|never\s+mind)"
     r"((?:\s+(?:the|that|this|those|these|any|all|your|my))*)"
-    r"(?:\s+(?:memory|memories|fact|facts|note|notes|thing|things|stuff|file))?"
+    r"(?:\s+(?:memories|memory|facts|fact|notes|note|things|thing|stuff|file))?"
     r"(?:\s+(?:about|of|on|regarding|that\s+says|that\s+said))?"
     r"(?:\s+what\s+you\s+(?:know|remember|have)\s+(?:about|on))?"
     r"[,:\s]*(.*)$",
