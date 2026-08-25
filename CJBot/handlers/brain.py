@@ -48,7 +48,7 @@ _FORGET_RE = re.compile(
     r"^(?:please\s+|can\s+you\s+|could\s+you\s+)*"
     r"(?:forget|erase|delete|wipe|scrub|drop|remove|unlearn|stop\s+remembering|"
     r"don'?t\s+remember|never\s+mind)"
-    r"(?:\s+(?:the|that|this|those|these|any|all|your|my))*"
+    r"((?:\s+(?:the|that|this|those|these|any|all|your|my))*)"
     r"(?:\s+(?:memory|memories|fact|facts|note|notes|thing|things|stuff|file))?"
     r"(?:\s+(?:about|of|on|regarding|that\s+says|that\s+said))?"
     r"(?:\s+what\s+you\s+(?:know|remember|have)\s+(?:about|on))?"
@@ -84,7 +84,9 @@ def parse_instruction(text: str) -> tuple[str, str] | None:
         return "remember", m.group(1).strip()
     m = _FORGET_RE.match(text)
     if m:
-        payload = m.group(1).strip().rstrip(".!?")
+        fillers, payload = m.group(1).split(), m.group(2).strip().rstrip(".!?")
+        if not payload and any(w.lower() in ("that", "this", "those", "these") for w in fillers):
+            return "forget_last", ""      # "forget that" / "forget this"
         if not payload or _ALL_RE.match(payload):
             return "forget_all", ""
         if _LAST_RE.match(payload):
