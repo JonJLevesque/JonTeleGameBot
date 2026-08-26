@@ -15,6 +15,8 @@ COMMAND_LIST = [
     ("remember", "store a fact by hand"),
     ("brain", "what the bot has picked up"),
     ("forget", "delete a fact by id"),
+    ("gh", "GitHub: watch repos, summaries"),
+    ("prs", "open PRs across watched repos"),
     ("tldr", "summarize a link"),
     ("settle", "settle an argument, decisively"),
     ("hottake", "a spicy tech opinion to fight about"),
@@ -45,6 +47,11 @@ Or be explicit: “remember Edgar's on the ledger branch”, “forget the postg
 thing”, “forget everything about the mall”, “from now on, be shorter” (standing \
 instruction — I'll obey until you /forget it).
 /remember &lt;fact&gt; · /brain · /forget &lt;id|words|last|all&gt;
+
+<b>GitHub</b>
+/gh watch owner/repo — pushes, PRs, issues, releases and CI failures land here
+/prs — open PRs across watched repos · /gh owner/repo — quick summary
+/gh me &lt;login&gt; — link your GitHub so merged PRs auto-log to /shipped
 
 <b>Tools</b>
 /tldr &lt;url&gt; · /settle &lt;the argument&gt; · /hottake [topic]

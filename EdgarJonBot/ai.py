@@ -107,6 +107,9 @@ def _chat_context(chat_id, text="", history=30) -> str:
     known = [f for f in db.relevant_facts(chat_id, text) if f not in style]
     if known:
         parts.append("Things you know about them and their projects:\n- " + "\n- ".join(known))
+    gh_lines = db.gh_recent_activity(chat_id)
+    if gh_lines:
+        parts.append("Recent GitHub activity on their repos (oldest first):\n- " + "\n- ".join(gh_lines))
     ideas = [r["text"] for r in db.ideas(chat_id, limit=15)]
     if ideas:
         parts.append("Open ideas in the vault:\n- " + "\n- ".join(ideas))

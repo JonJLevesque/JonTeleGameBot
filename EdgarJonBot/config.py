@@ -12,6 +12,10 @@ BACKUP_DIR = os.environ.get("BOT_BACKUP_DIR", "backups")
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "claude-opus-5")
 
+# GitHub connector: a token with repo read scope. Falls back to `gh auth token`.
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_POLL_SECONDS = int(os.environ.get("GITHUB_POLL_SECONDS", "180"))
+
 # The bot's name as it introduces itself and how it's addressed in chat.
 BOT_NAME = os.environ.get("BOT_NAME", "Edgar Jr.")
 # Probability (0-1) that the bot butts into a conversation unprompted.

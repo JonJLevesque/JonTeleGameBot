@@ -52,6 +52,22 @@ def init(path: str) -> None:
             name TEXT NOT NULL, text TEXT NOT NULL,
             due REAL NOT NULL, fired INTEGER NOT NULL DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS gh_watch (
+            chat_id INTEGER NOT NULL, repo TEXT NOT NULL, added_by TEXT NOT NULL,
+            PRIMARY KEY (chat_id, repo)
+        );
+        CREATE TABLE IF NOT EXISTS gh_state (
+            repo TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL,
+            PRIMARY KEY (repo, key)
+        );
+        CREATE TABLE IF NOT EXISTS gh_users (
+            chat_id INTEGER NOT NULL, user_id INTEGER NOT NULL, name TEXT NOT NULL, login TEXT NOT NULL,
+            PRIMARY KEY (chat_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS gh_activity (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id INTEGER NOT NULL, line TEXT NOT NULL, ts REAL NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS ducks (
             chat_id INTEGER NOT NULL, user_id INTEGER NOT NULL,
             transcript TEXT NOT NULL, PRIMARY KEY (chat_id, user_id)
@@ -347,3 +363,60 @@ def set_duck(chat_id, user_id, transcript: str | None) -> None:
                 "ON CONFLICT (chat_id, user_id) DO UPDATE SET transcript = excluded.transcript",
                 (chat_id, user_id, transcript),
             )
+
+
+# ----------------------------------------------------------------- github
+
+def gh_watch(chat_id, repo, added_by) -> bool:
+    with _db() as c:
+        cur = c.execute("INSERT OR IGNORE INTO gh_watch (chat_id, repo, added_by) VALUES (?, ?, ?)", (chat_id, repo.lower(), added_by))
+    return cur.rowcount > 0
+
+
+def gh_unwatch(chat_id, repo) -> bool:
+    with _db() as c:
+        cur = c.execute("DELETE FROM gh_watch WHERE chat_id = ? AND repo = ?", (chat_id, repo.lower()))
+    return cur.rowcount > 0
+
+
+def gh_watched(chat_id=None) -> list[sqlite3.Row]:
+    if chat_id is None:
+        return _db().execute("SELECT * FROM gh_watch ORDER BY repo").fetchall()
+    return _db().execute("SELECT * FROM gh_watch WHERE chat_id = ? ORDER BY repo", (chat_id,)).fetchall()
+
+
+def gh_get(repo, key, default=None):
+    r = _db().execute("SELECT value FROM gh_state WHERE repo = ? AND key = ?", (repo.lower(), key)).fetchone()
+    return r["value"] if r else default
+
+
+def gh_set(repo, key, value) -> None:
+    with _db() as c:
+        c.execute("INSERT INTO gh_state (repo, key, value) VALUES (?, ?, ?) ON CONFLICT (repo, key) DO UPDATE SET value = excluded.value",
+                  (repo.lower(), key, str(value)))
+
+
+def gh_link(chat_id, user_id, name, login) -> None:
+    with _db() as c:
+        c.execute("INSERT INTO gh_users (chat_id, user_id, name, login) VALUES (?, ?, ?, ?) "
+                  "ON CONFLICT (chat_id, user_id) DO UPDATE SET name = excluded.name, login = excluded.login",
+                  (chat_id, user_id, name, login.lower()))
+
+
+def gh_user_for_login(chat_id, login):
+    return _db().execute("SELECT * FROM gh_users WHERE chat_id = ? AND login = ?", (chat_id, login.lower())).fetchone()
+
+
+def gh_logins(chat_id) -> list[sqlite3.Row]:
+    return _db().execute("SELECT * FROM gh_users WHERE chat_id = ?", (chat_id,)).fetchall()
+
+
+def gh_log_activity(chat_id, line) -> None:
+    with _db() as c:
+        c.execute("INSERT INTO gh_activity (chat_id, line, ts) VALUES (?, ?, ?)", (chat_id, line[:200], time.time()))
+        c.execute("DELETE FROM gh_activity WHERE chat_id = ? AND id NOT IN (SELECT id FROM gh_activity WHERE chat_id = ? ORDER BY id DESC LIMIT 40)", (chat_id, chat_id))
+
+
+def gh_recent_activity(chat_id, limit=12) -> list[str]:
+    rows = _db().execute("SELECT line FROM gh_activity WHERE chat_id = ? ORDER BY id DESC LIMIT ?", (chat_id, limit)).fetchall()
+    return [r["line"] for r in reversed(rows)]
