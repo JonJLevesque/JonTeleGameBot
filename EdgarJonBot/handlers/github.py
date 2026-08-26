@@ -23,7 +23,10 @@ async def gh_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if sub == "watch" and len(args) == 2:
         repo = gh.parse_repo(args[1])
         if not repo:
-            await msg.reply_text("Usage: /gh watch owner/repo")
+            await msg.reply_text(
+                f"I need owner/repo, not just an owner — e.g. /gh watch {args[1].strip('/')}/JonTeleGameBot"
+                if "/" not in args[1] else "Usage: /gh watch owner/repo"
+            )
             return
         info = await gh.repo_info(repo)
         if not info:
