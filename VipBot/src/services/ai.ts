@@ -68,3 +68,34 @@ export async function weeklySummary(env: Env, cfg: Config, statsJson: string): P
   } as never);
   return text(resp);
 }
+
+
+export interface OperatorAnswer { answer: string; request: string | null }
+
+/** Answer an operator's question from the manual. If the message is really a feature request or
+ *  bug report for the developer, return it in `request` (cleaned up) so the caller can file it. */
+export async function answerOperator(env: Env, cfg: Config, manualText: string, question: string, history: { q: string; a: string }[]): Promise<OperatorAnswer | null> {
+  const schema = {
+    type: "object",
+    properties: { answer: { type: "string" }, request: { type: ["string", "null"] } },
+    required: ["answer", "request"], additionalProperties: false,
+  };
+  const system =
+    `You are the in-app guide for a Telegram community bot, talking to ${cfg.creatorName} (the creator) or another admin in a private chat. ` +
+    "Answer ONLY from the manual below; if the manual doesn't cover it, say so plainly and suggest /request. Be concise and concrete: " +
+    "give the exact command to type. Telegram HTML only (<b>, <i>, <code>), no markdown. When the person is asking for something the " +
+    "bot can't do yet, wants changed, or reports a bug, put a clean one-paragraph version in `request` (and still answer helpfully); " +
+    "otherwise request is null.\n\nMANUAL:\n" + manualText;
+  const messages = [
+    ...history.flatMap((h) => [{ role: "user" as const, content: h.q }, { role: "assistant" as const, content: h.a }]),
+    { role: "user" as const, content: question },
+  ];
+  const resp = await create(env, cfg, {
+    max_tokens: 1500, system,
+    output_config: { effort: "low", format: { type: "json_schema", schema } },
+    messages,
+  } as never);
+  const t = text(resp);
+  if (!t) return null;
+  try { return JSON.parse(t) as OperatorAnswer; } catch { return null; }
+}

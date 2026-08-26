@@ -30,7 +30,10 @@ export function registerFunnel(bot: Bot<Ctx>) {
       `<b>Membership</b>\n/start — join, or see your status\n\n` +
       `<b>Every member</b>\n/claim — daily ${esc(c.pointsName)} (streaks pay more)\n/profile — level, ${esc(c.xpName)}, ${esc(c.pointsName)}, badges\n/tip &lt;stars&gt; — tip with Telegram Stars\n\n` +
       `<b>In the room</b> (${c.tiers.filter((t) => t.group).map((t) => `${t.emoji} ${esc(t.name)}`).join(", ") || "room tiers"})\nChat to earn ${esc(c.xpName)}. Tap crates when they drop. Trivia at 20:00.\n/leaderboard [xp|points|streak]\n/slots &lt;stake&gt; — in the games topic\n/give @user &lt;n&gt; — share ${esc(c.pointsName)}\n/shop — titles, shoutouts, perks`;
-    if (ctx.chat?.type === "private") await ctx.reply(text, { parse_mode: "HTML" });
+    const admin = ctx.isAdmin && ctx.chat?.type === "private"
+      ? "\n\n<b>Creator</b>\nJust ask me in plain words — “how do I comp someone?” — or /request &lt;idea&gt; to send Jon a feature request."
+      : "";
+    if (ctx.chat?.type === "private") await ctx.reply(text + admin, { parse_mode: "HTML" });
     else if (ctx.from) await ephemeral(ctx.api, ctx.chat!.id, ctx.from.id, text);
   });
 

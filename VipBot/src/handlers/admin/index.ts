@@ -64,7 +64,10 @@ async function setAi(ctx: Ctx, on: boolean) {
   await ctx.reply(`AI ${on ? "enabled" : "disabled"}.`);
 }
 
+import { registerAssistant } from "./assistant";
+
 export function registerAdmin(bot: Bot<Ctx>) {
+  registerAssistant(bot);
   // Bot promoted/added somewhere → tell admins the chat id.
   bot.on("my_chat_member", async (ctx, next) => {
     const m = ctx.myChatMember;
