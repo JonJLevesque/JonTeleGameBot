@@ -24,13 +24,23 @@ describe("membership flow", () => {
     await setConfig(E, "channelChatId", CHANNEL);
   });
 
+  it("VIP (feed-only) gets just the channel link and is refused at the group", async () => {
+    const { bot, rec } = await makeBot();
+    const uid = 600;
+    await handlePaymentEvent(E, exec, evt(uid, "initial", "e0"), bot.api);
+    const links = await E.DB.prepare("SELECT chat_kind FROM invite_links WHERE user_id = ?").bind(uid).all<{ chat_kind: string }>();
+    expect(links.results.map((l) => l.chat_kind)).toEqual(["channel"]);
+    await bot.handleUpdate(joinRequestUpdate(uid, GROUP, { invite_link: "https://t.me/+forged" }, "qid-0"));
+    expect(rec.last("answerChatJoinRequestQuery")).toMatchObject({ chat_join_request_query_id: "qid-0", result: "decline" });
+  });
+
   it("external payment activates, reveals both links, and is idempotent", async () => {
     const { bot, rec } = await makeBot();
     const uid = 601;
-    const r1 = await handlePaymentEvent(E, exec, evt(uid, "initial", "e1", { subscriptionId: "sub_1" }), bot.api);
+    const r1 = await handlePaymentEvent(E, exec, evt(uid, "initial", "e1", { subscriptionId: "sub_1", tier: "vipplus" }), bot.api);
     expect(r1).toEqual({ ok: true, note: "none -> active" });
     const snap = await memberStub(E, uid).snapshot(uid);
-    expect(snap).toMatchObject({ state: "active", rail: "external", tier: "vip" });
+    expect(snap).toMatchObject({ state: "active", rail: "external", tier: "vipplus" });
     const links = await E.DB.prepare("SELECT chat_kind FROM invite_links WHERE user_id = ? ORDER BY chat_kind").bind(uid).all<{ chat_kind: string }>();
     expect(links.results.map((l) => l.chat_kind)).toEqual(["channel", "group"]);
     const ms = await E.DB.prepare("SELECT external_subscription_id FROM memberships WHERE user_id = ?").bind(uid).first<{ external_subscription_id: string }>();

@@ -27,7 +27,7 @@ export type AiJob =
 
 /** Telegram side effects that must be paced or are bulk; consumed in src/jobs/tgops.ts. */
 export type TgOp =
-  | { kind: "kick"; userId: number; reason: string }
+  | { kind: "kick"; userId: number; reason: string; chats?: ("group" | "channel")[] }
   | { kind: "unban"; userId: number }
   | { kind: "dm"; userId: number; text: string; parseMode?: "HTML" }
   | { kind: "broadcast"; text: string; parseMode?: "HTML"; actorId: number }

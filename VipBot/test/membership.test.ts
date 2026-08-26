@@ -46,3 +46,13 @@ describe("membership FSM", () => {
     }
   });
 });
+
+import { DEFAULT_CONFIG, tierAllowsGroup } from "../src/config";
+
+describe("tier access", () => {
+  it("VIP is feed-only, VIP+ gets the room", () => {
+    expect(tierAllowsGroup(DEFAULT_CONFIG, "vip")).toBe(false);
+    expect(tierAllowsGroup(DEFAULT_CONFIG, "vipplus")).toBe(true);
+    expect(tierAllowsGroup(DEFAULT_CONFIG, null)).toBe(false);
+  });
+});

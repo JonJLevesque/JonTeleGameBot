@@ -9,9 +9,12 @@ export async function consumeTgOp(env: Env, ctx: ExecutionContext, op: TgOp) {
   const api = new Api(env.TG_BOT_TOKEN);
   const cfg = await loadConfig(env);
   switch (op.kind) {
-    case "kick":
-      for (const chat of [cfg.groupChatId, cfg.channelChatId]) if (chat) await kick(api, chat, op.userId).catch((e) => console.warn("kick failed", chat, String(e)));
+    case "kick": {
+      const which = op.chats ?? ["group", "channel"];
+      const targets = [which.includes("group") && cfg.groupChatId, which.includes("channel") && cfg.channelChatId];
+      for (const chat of targets) if (chat) await kick(api, chat, op.userId).catch((e) => console.warn("kick failed", chat, String(e)));
       break;
+    }
     case "unban":
       for (const chat of [cfg.groupChatId, cfg.channelChatId]) if (chat) await unban(api, chat, op.userId).catch(() => {});
       break;

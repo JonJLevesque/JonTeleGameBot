@@ -2,7 +2,7 @@
  *  links are reused, kicks/bans are naturally idempotent, rewards are keyed by ref. */
 import type { Api } from "grammy";
 import { InlineKeyboard } from "grammy";
-import { tierByCode, type Config } from "../../config";
+import { tierAllowsGroup, tierByCode, type Config } from "../../config";
 import { signCb } from "../../domain/callbacks";
 import type { Effect, MemberSnapshot } from "../../domain/membership";
 import { memberStub } from "../../do/MemberDO";
@@ -37,18 +37,33 @@ export async function grantAccess(env: Env, api: Api, cfg: Config, userId: numbe
   }
   const s = snap ?? (await memberStub(env, userId).snapshot(userId));
   const tier = tierByCode(cfg, s.tier);
-  const group = await issueLink(env, api, cfg, "group", userId);
   const lines = [
     `${tier?.emoji ?? "🌸"} <b>Welcome to ${esc(cfg.communityName)}${tier ? ` · ${esc(tier.name)}` : ""}.</b>`,
-    "",
-    `💬 <b>The room</b> (chat, games, ${esc(cfg.pointsName)}):`,
-    group,
   ];
   if (s.rail === "external") {
     const channel = await issueLink(env, api, cfg, "channel", userId);
     lines.push("", "📸 <b>The feed</b> (exclusive posts):", channel);
+  } else {
+    lines.push("", "📸 <b>The feed</b>: you're in through your subscription link.");
   }
-  lines.push("", "These links are yours alone: each works once and expires in 48 hours. Tap, request to join, and you're in within seconds.");
+  if (tierAllowsGroup(cfg, s.tier)) {
+    const group = await issueLink(env, api, cfg, "group", userId);
+    lines.push("", `💬 <b>The room</b> (chat, games, ${esc(cfg.pointsName)}):`, group);
+  } else {
+    const upgrade = cfg.tiers.find((t) => t.group);
+    if (upgrade) lines.push("", `💬 The room (chat, games, ${esc(cfg.pointsName)}) is ${upgrade.emoji} ${esc(upgrade.name)} only — /start any time to upgrade.`);
+  }
+  if (s.rail === "external" || tierAllowsGroup(cfg, s.tier)) {
+    lines.push("", "These links are yours alone: each works once and expires in 48 hours. Tap, request to join, and you're in within seconds.");
+  }
+  // A downgrade (VIP+ → VIP) revokes the room without touching the feed.
+  if (!tierAllowsGroup(cfg, s.tier)) {
+    const row = await env.DB.prepare("SELECT in_group FROM memberships WHERE user_id = ?").bind(userId).first<{ in_group: number }>();
+    if (row?.in_group) {
+      await env.TG_OPS.send({ kind: "kick", userId, reason: "tier_no_group", chats: ["group"] });
+      await setPresence(env, userId, "group", false);
+    }
+  }
   await dm(api, userId, lines.join("\n"), { link_preview_options: { is_disabled: true } });
   return true;
 }

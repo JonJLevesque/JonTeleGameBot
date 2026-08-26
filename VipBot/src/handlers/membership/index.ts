@@ -1,5 +1,6 @@
 /** Membership events from Telegram: join requests on personal links, channel joins via Stars
  *  subscription links, presence tracking, and the public welcome ritual. */
+import { tierAllowsGroup } from "../../config";
 import type { Bot } from "grammy";
 import type { ChatInviteLink, ChatMemberUpdated } from "grammy/types";
 import type { Config } from "../../config";
@@ -41,7 +42,7 @@ async function onJoinRequest(ctx: Ctx) {
   } else if (row && row.used_by != null && row.used_by !== uid) {
     await audit(ctx.env, uid, "link_shared", row.user_id, { link_owner: row.user_id, used_by: uid, consumed_by: row.used_by, chat: kind });
   } else if (isActive(snap.state) && (row || isStarsLink(req.invite_link))) {
-    ok = true;
+    ok = kind === "channel" || tierAllowsGroup(ctx.cfg, snap.tier);
   }
 
   const answer = async (result: "approve" | "decline") => {

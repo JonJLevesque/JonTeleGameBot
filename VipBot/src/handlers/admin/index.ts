@@ -54,7 +54,7 @@ async function setupText(ctx: Ctx): Promise<string> {
     `group: <code>${c.groupChatId}</code> · channel: <code>${c.channelChatId}</code>`,
     `tz: ${esc(c.creatorTz)} · ai: ${c.aiEnabled ? "on" : "off"} (${esc(c.aiModel)})`,
     `tiers: ${c.tiers.map((t) => `${t.emoji} ${esc(t.code)} ${t.stars}⭐/$${t.usd}`).join(", ")}`,
-    "", "/setup group|channel &lt;id&gt; · tz &lt;IANA&gt; · name &lt;text&gt; · creator &lt;text&gt; · ai on|off · price &lt;tier&gt; &lt;stars&gt; &lt;usd&gt;",
+    "", "/setup group|channel &lt;id&gt; · tz &lt;IANA&gt; · name &lt;text&gt; · creator &lt;text&gt; · ai on|off · price &lt;tier&gt; &lt;stars&gt; &lt;usd&gt; · access &lt;tier&gt; feed|both",
   ].join("\n");
 }
 
@@ -109,6 +109,17 @@ export function registerAdmin(bot: Bot<Ctx>) {
       case "ai": {
         if (rest[0] !== "on" && rest[0] !== "off") { await ctx.reply("Usage: /setup ai on|off"); return; }
         await setAi(ctx, rest[0] === "on"); return;
+      }
+      case "access": {
+        const [code, what] = rest;
+        const tiers = structuredClone(ctx.cfg.tiers);
+        const t = tiers.find((x) => x.code === code);
+        if (!t || (what !== "feed" && what !== "both")) { await ctx.reply("Usage: /setup access <tierCode> feed|both"); return; }
+        t.group = what === "both";
+        await setConfig(ctx.env, "tiers", tiers);
+        await audit(ctx.env, uid, "setup.access", code, { group: t.group });
+        await ctx.reply(`${t.emoji} ${t.name} now unlocks ${t.group ? "the feed and the room" : "the feed only"}.`);
+        return;
       }
       case "price": {
         const [code, stars, usd] = rest;

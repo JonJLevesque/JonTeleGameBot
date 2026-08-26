@@ -1,6 +1,6 @@
 /** DM onboarding: /start → pitch → attestation → tier → rail → payment link → (membership module grants access). */
 import { InlineKeyboard, type Bot } from "grammy";
-import { tierByCode, type Config } from "../../config";
+import { tierByCode, type Config, tierAccessLabel } from "../../config";
 import type { Ctx } from "../../context";
 import { nowIso, upsertMember } from "../../db";
 import { signCb, verifyCb } from "../../domain/callbacks";
@@ -109,7 +109,8 @@ async function attest(ctx: Ctx) {
 async function pickTier(ctx: Ctx) {
   const kb = new InlineKeyboard();
   for (const t of ctx.cfg.tiers) kb.text(`${t.emoji} ${t.name} · ⭐${t.stars} / $${t.usd.toFixed(2)}`, await cb(ctx.env, `tier:${t.code}`)).row();
-  await ctx.reply("<b>Choose your tier.</b> Every tier is 30 days, renews monthly, and you can leave any time.", { parse_mode: "HTML", reply_markup: kb });
+  const legend = ctx.cfg.tiers.map((t) => `${t.emoji} <b>${esc(t.name)}</b> — ${tierAccessLabel(t)}`).join("\n");
+  await ctx.reply(`<b>Choose your tier.</b>\n${legend}\n\nEvery tier is 30 days, renews monthly, and you can leave any time.`, { parse_mode: "HTML", reply_markup: kb });
 }
 
 async function pickRail(ctx: Ctx, code: string) {

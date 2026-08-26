@@ -11,6 +11,8 @@ export interface TierConfig {
   xpMultiplier: number;
   renewalPoints: number;
   voteWeight: number;
+  /** Which rooms the tier unlocks. The channel (feed) is always included. */
+  group: boolean;
 }
 
 export interface Config {
@@ -56,8 +58,8 @@ export const DEFAULT_CONFIG: Config = {
   channelChatId: 0,
   gamesTopicId: null,
   tiers: [
-    { code: "vip", name: "VIP", emoji: "🌸", stars: 500, usd: 9.99, xpMultiplier: 1, renewalPoints: 100, voteWeight: 1 },
-    { code: "vipplus", name: "VIP+", emoji: "🌹", stars: 1500, usd: 24.99, xpMultiplier: 1.5, renewalPoints: 400, voteWeight: 2 },
+    { code: "vip", name: "VIP", emoji: "🌸", stars: 500, usd: 9.99, xpMultiplier: 1, renewalPoints: 100, voteWeight: 1, group: false },
+    { code: "vipplus", name: "VIP+", emoji: "🌹", stars: 1500, usd: 24.99, xpMultiplier: 1.5, renewalPoints: 400, voteWeight: 2, group: true },
   ],
   attestationVersion: 1,
   graceDays: 3,
@@ -88,6 +90,8 @@ export async function loadConfig(env: Env): Promise<Config> {
   for (const r of rows.results) {
     try { setPath(cfg as unknown as Record<string, unknown>, r.key, JSON.parse(r.value_json)); } catch { /* ignore bad row */ }
   }
+  // Stored tiers may predate newer fields (e.g. `group`): fill gaps from the defaults by code.
+  cfg.tiers = cfg.tiers.map((t) => ({ ...(DEFAULT_CONFIG.tiers.find((d) => d.code === t.code) ?? {}), ...t } as TierConfig));
   await env.KV.put(KV_KEY, JSON.stringify(cfg), { expirationTtl: 60 }).catch(() => {});
   return cfg;
 }
@@ -112,6 +116,15 @@ function setPath(obj: Record<string, unknown>, path: string, value: unknown) {
 
 export function tierByCode(cfg: Config, code: string | null | undefined): TierConfig | undefined {
   return cfg.tiers.find((t) => t.code === code);
+}
+
+/** True when the tier admits the member to the group (the channel is always included). */
+export function tierAllowsGroup(cfg: Config, code: string | null | undefined): boolean {
+  return tierByCode(cfg, code)?.group ?? false;
+}
+
+export function tierAccessLabel(t: TierConfig): string {
+  return t.group ? "📸 feed + 💬 room" : "📸 feed";
 }
 
 export function isAdmin(env: Env, userId: number | undefined): boolean {
