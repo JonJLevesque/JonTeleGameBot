@@ -14,6 +14,8 @@ COMMAND_LIST = [
     ("reminders", "pending reminders"),
     ("remember", "store a fact by hand"),
     ("brain", "what the bot has picked up"),
+    ("yesterday", "what we talked about that day"),
+    ("recall", "search the whole chat history"),
     ("forget", "delete a fact by id"),
     ("gh", "GitHub: watch repos, summaries"),
     ("prs", "open PRs across watched repos"),
@@ -49,11 +51,15 @@ Or be explicit: “remember Edgar's on the ledger branch”, “forget the postg
 thing”, “forget everything about the mall”, “from now on, be shorter” (standing \
 instruction — I'll obey until you /forget it).
 /remember &lt;fact&gt; · /brain · /forget &lt;id|words|last|all&gt;
+/yesterday [N|date] — what the chat was about that day (nightly journal)
+/recall &lt;words&gt; — search everything ever said here
 
 <b>GitHub</b>
 /gh watch owner/repo — pushes, PRs, issues, releases and CI failures land here
 /prs — open PRs across watched repos · /gh owner/repo — quick summary
 /gh me &lt;login&gt; — link your GitHub so merged PRs auto-log to /shipped
+/gh file owner/repo path [question] — read a file and ask about it
+Watched repos get a card (README, tree, commits) I keep in mind; /gh refresh
 /pr owner/repo branch | title | body — open a PR from a pushed branch
 /pr approve owner/repo#12 · /pr merge owner/repo#12 (asks you to confirm)
 /issue owner/repo title | body — file an issue

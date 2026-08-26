@@ -34,6 +34,9 @@ async def gh_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         added = db.gh_watch(chat_id, repo, update.effective_user.first_name)
         if added:
+            card = await gh.build_card(repo)
+            if card:
+                db.gh_set(repo, "card", card); db.gh_set(repo, "card_ts", time.time())
             # Start from now: don't replay history into the chat.
             evs, etag = await gh.events(repo, None)
             if evs:
@@ -58,8 +61,37 @@ async def gh_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lines = ["👀 <b>Watching</b>"] + [f"• {html.escape(r['repo'])}" for r in rows]
         if logins:
             lines.append("\n🔗 " + ", ".join(f"{html.escape(u['name'])} = {html.escape(u['login'])}" for u in logins))
-        lines.append("\n/prs · /gh watch|unwatch owner/repo · /gh me &lt;login&gt; · /gh owner/repo")
+        lines.append("\n/prs · /gh watch|unwatch owner/repo · /gh me &lt;login&gt; · /gh owner/repo · /gh file owner/repo path [question] · /gh refresh")
         await msg.reply_html("\n".join(lines))
+        return
+    if sub == "file" and len(args) >= 3:
+        repo = gh.parse_repo(args[1])
+        path = args[2]
+        question = " ".join(args[3:])
+        if not repo:
+            await msg.reply_text("Usage: /gh file owner/repo path/to/file.py [question]")
+            return
+        content, err = await gh.file_content(repo, path)
+        if content is None:
+            await msg.reply_text(f"Couldn't read {path}: {err}")
+            return
+        import ai
+        if ai.ENABLED:
+            await context.bot.send_chat_action(chat_id, "typing")
+            out = await ai.answer_with_file(chat_id, question, f"{repo}:{path}", content)
+            if out:
+                await msg.reply_text(out[:4000])
+                return
+        snippet = content[:3500]
+        await msg.reply_html(f"<b>{html.escape(path)}</b> ({len(content)} chars)\n<pre>{html.escape(snippet)}</pre>" + ("\n<i>…truncated</i>" if len(content) > 3500 else ""))
+        return
+    if sub == "refresh":
+        n = 0
+        for r in db.gh_watched(chat_id):
+            card = await gh.build_card(r["repo"])
+            if card:
+                db.gh_set(r["repo"], "card", card); db.gh_set(r["repo"], "card_ts", time.time()); n += 1
+        await msg.reply_text(f"Refreshed {n} repo card(s). I know what's in them now.")
         return
     if sub == "me" and len(args) == 2:
         u = update.effective_user
@@ -256,7 +288,14 @@ async def poll(context: ContextTypes.DEFAULT_TYPE):
             log.exception("poll failed for %s", repo)
 
 
+CARD_TTL = 6 * 3600
+
+
 async def _poll_repo(context, repo: str, chats: list[int]):
+    if time.time() - float(db.gh_get(repo, "card_ts", 0) or 0) > CARD_TTL:
+        card = await gh.build_card(repo)
+        if card:
+            db.gh_set(repo, "card", card); db.gh_set(repo, "card_ts", time.time())
     evs, etag = await gh.events(repo, db.gh_get(repo, "etag"))
     if evs is None:
         return

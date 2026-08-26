@@ -113,11 +113,31 @@ def _chat_context(chat_id, text="", history=30) -> str:
     ideas = [r["text"] for r in db.ideas(chat_id, limit=15)]
     if ideas:
         parts.append("Open ideas in the vault:\n- " + "\n- ".join(ideas))
+    cards = repo_cards(chat_id)
+    if cards:
+        parts.append("What you know about their repos:\n\n" + "\n\n".join(cards))
+    journal = db.journal_recent(chat_id, days=7)
+    if journal:
+        parts.append("Journal — what the chat was about on recent days:\n" +
+                     "\n".join(f"{r['day']}: {r['summary']}" for r in journal))
+    if text:
+        old = db.search_messages(chat_id, text, limit=8, exclude_last=history)
+        if old:
+            parts.append("Earlier messages that look relevant to this (oldest first):\n" +
+                         "\n".join(f"[{_day(r['ts'])}] {r['name']}: {r['text'][:300]}" for r in sorted(old, key=lambda r: r["id"])))
     recent = db.recent_messages(chat_id, limit=history)
     if recent:
         lines = [f"{r['name']}: {r['text']}" for r in recent]
         parts.append("Recent chat (oldest first):\n" + "\n".join(lines))
     return "\n\n".join(parts)
+
+
+def _day(ts: float) -> str:
+    return datetime.fromtimestamp(ts).astimezone().strftime("%Y-%m-%d")
+
+
+def repo_cards(chat_id) -> list[str]:
+    return [c for c in (db.gh_get(r["repo"], "card") for r in db.gh_watched(chat_id)) if c]
 
 
 # ------------------------------------------------------------- persona chat
@@ -223,6 +243,26 @@ async def freeform(chat_id, instruction: str, text: str = "", effort="medium") -
         messages=[{"role": "user", "content": prompt}],
     )
     return _text(resp)
+
+
+async def summarize_day(chat_id, day: str, rows) -> str | None:
+    """A journal entry: what happened in the chat that day, in 3-6 dense lines."""
+    transcript = "\n".join(f"{r['name']}: {r['text'][:300]}" for r in rows)[-24000:]
+    resp = await _create(
+        output_config={"effort": "low"}, max_tokens=600,
+        messages=[{"role": "user", "content":
+            f"Summarize this day ({day}) of a chat between two developer friends, Jon and Edgar, for the bot's "
+            "journal. 3-6 lines, plain text, past tense, specific: what they worked on, decided, argued about, "
+            "planned, or joked about that they'd want remembered. Name names. No preamble.\n\n" + transcript}],
+    )
+    return _text(resp)
+
+
+async def answer_with_file(chat_id, question: str, path: str, content: str) -> str | None:
+    return await freeform(chat_id,
+        f"Answer using the file below ({path}). Be concrete: quote lines, name functions. If the question isn't "
+        f"specified, explain what the file does and anything notable.\n\nQuestion: {question or 'explain this file'}",
+        f"```\n{content[:12000]}\n```", effort="medium")
 
 
 async def duck(transcript: str, latest: str) -> str | None:

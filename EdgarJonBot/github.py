@@ -268,3 +268,71 @@ def parse_repo(arg: str) -> str | None:
     if len(parts) != 2 or not all(parts):
         return None
     return f"{parts[0]}/{parts[1]}".lower()
+
+
+async def readme(repo: str) -> str:
+    st, j, _ = await _get(f"/repos/{repo}/readme")
+    if st != 200 or not j:
+        return ""
+    import base64
+    try:
+        return base64.b64decode(j.get("content", "")).decode("utf-8", "replace")
+    except Exception:
+        return ""
+
+
+async def tree(repo: str, branch: str, limit=80) -> list[str]:
+    st, j, _ = await _get(f"/repos/{repo}/git/trees/{branch}", {"recursive": "1"})
+    if st != 200 or not j:
+        return []
+    paths = [t["path"] for t in j.get("tree", []) if t.get("type") == "blob"]
+    noise = ("node_modules/", ".git/", "dist/", "build/", "__pycache__/", ".lock", ".png", ".jpg", ".svg", ".ico")
+    paths = [p for p in paths if not any(n in p for n in noise)]
+    # Prefer shallow, structural files.
+    paths.sort(key=lambda p: (p.count("/"), p))
+    return paths[:limit]
+
+
+async def languages(repo: str) -> list[str]:
+    st, j, _ = await _get(f"/repos/{repo}/languages")
+    return [k for k, _ in sorted((j or {}).items(), key=lambda kv: -kv[1])][:4] if st == 200 else []
+
+
+async def recent_commits(repo: str, n=10) -> list[str]:
+    st, j, _ = await _get(f"/repos/{repo}/commits", {"per_page": n})
+    if st != 200 or not j:
+        return []
+    return [f"{c['sha'][:7]} {(c.get('commit') or {}).get('message', '').splitlines()[0][:80]}" for c in j]
+
+
+async def build_card(repo: str) -> str:
+    """A compact, prompt-ready description of a repo: what, how it's built, where things live."""
+    info = await repo_info(repo)
+    if not info:
+        return ""
+    branch = info.get("default_branch", "main")
+    rd, paths, langs, commits = await readme(repo), await tree(repo, branch), await languages(repo), await recent_commits(repo)
+    rd = " ".join(rd.split())[:2500]
+    lines = [f"REPO {info['full_name']} — {info.get('description') or 'no description'} · {', '.join(langs) or 'unknown languages'} · default {branch} · last push {(info.get('pushed_at') or '')[:10]}"]
+    if rd:
+        lines.append("README: " + rd)
+    if paths:
+        lines.append("Files: " + ", ".join(paths))
+    if commits:
+        lines.append("Recent commits: " + " | ".join(commits))
+    return "\n".join(lines)[:6000]
+
+
+async def file_content(repo: str, path: str, ref: str | None = None) -> tuple[str | None, str]:
+    st, j, _ = await _get(f"/repos/{repo}/contents/{path.strip('/')}", {"ref": ref} if ref else None)
+    if st != 200 or not j:
+        return None, "not found"
+    if isinstance(j, list):
+        return None, "that's a directory: " + ", ".join(x["name"] for x in j[:40])
+    if j.get("encoding") != "base64":
+        return None, "can't read that (too large or binary)"
+    import base64
+    try:
+        return base64.b64decode(j.get("content", "")).decode("utf-8", "replace"), ""
+    except Exception:
+        return None, "binary file"

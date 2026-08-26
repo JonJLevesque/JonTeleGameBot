@@ -52,6 +52,20 @@ def init(path: str) -> None:
             name TEXT NOT NULL, text TEXT NOT NULL,
             due REAL NOT NULL, fired INTEGER NOT NULL DEFAULT 0
         );
+        CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+            text, content='messages', content_rowid='id', tokenize='porter unicode61'
+        );
+        CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+            INSERT INTO messages_fts(rowid, text) VALUES (new.id, new.text);
+        END;
+        CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+            INSERT INTO messages_fts(messages_fts, rowid, text) VALUES ('delete', old.id, old.text);
+        END;
+        CREATE TABLE IF NOT EXISTS journal (
+            chat_id INTEGER NOT NULL, day TEXT NOT NULL, summary TEXT NOT NULL,
+            messages INTEGER NOT NULL DEFAULT 0, ts REAL NOT NULL,
+            PRIMARY KEY (chat_id, day)
+        );
         CREATE TABLE IF NOT EXISTS gh_watch (
             chat_id INTEGER NOT NULL, repo TEXT NOT NULL, added_by TEXT NOT NULL,
             PRIMARY KEY (chat_id, repo)
@@ -73,6 +87,13 @@ def init(path: str) -> None:
             transcript TEXT NOT NULL, PRIMARY KEY (chat_id, user_id)
         );
     """)
+
+
+def _ensure_fts_populated() -> None:
+    n = _db().execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+    m = _db().execute("SELECT COUNT(*) FROM messages_fts").fetchone()[0]
+    if n and not m:
+        rebuild_fts()
 
 
 def backup(dest_dir: str, keep: int = 14) -> str:
@@ -122,6 +143,71 @@ def recent_messages(chat_id, limit=30) -> list[sqlite3.Row]:
         (chat_id, limit),
     ).fetchall()
     return list(reversed(rows))
+
+
+def _fts_query(text: str) -> str:
+    import re
+    words = [w for w in re.findall(r"[a-zA-Z0-9_']{3,}", text) if w.lower() not in _STOP]
+    return " OR ".join(f'"{w}"' for w in words[:12])
+
+
+def search_messages(chat_id, query: str, limit=8, exclude_last=30) -> list[sqlite3.Row]:
+    """Older messages relevant to `query`, best match first. Skips the most
+    recent `exclude_last` rows (those are already in the prompt)."""
+    q = _fts_query(query)
+    if not q:
+        return []
+    cutoff = 2 ** 62
+    if exclude_last:
+        cutoff = _db().execute(
+            "SELECT COALESCE(MIN(id), ?) FROM (SELECT id FROM messages WHERE chat_id = ? ORDER BY id DESC LIMIT ?)",
+            (cutoff, chat_id, exclude_last),
+        ).fetchone()[0]
+    try:
+        return _db().execute(
+            "SELECT m.* FROM messages_fts f JOIN messages m ON m.id = f.rowid "
+            "WHERE messages_fts MATCH ? AND m.chat_id = ? AND m.id < ? ORDER BY bm25(messages_fts) LIMIT ?",
+            (q, chat_id, cutoff, limit),
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+
+
+def messages_between(chat_id, start_ts, end_ts) -> list[sqlite3.Row]:
+    return _db().execute(
+        "SELECT * FROM messages WHERE chat_id = ? AND ts >= ? AND ts < ? ORDER BY id",
+        (chat_id, start_ts, end_ts),
+    ).fetchall()
+
+
+def rebuild_fts() -> None:
+    with _db() as c:
+        c.execute("INSERT INTO messages_fts(messages_fts) VALUES ('rebuild')")
+
+
+def journal_put(chat_id, day, summary, messages) -> None:
+    with _db() as c:
+        c.execute("INSERT INTO journal (chat_id, day, summary, messages, ts) VALUES (?, ?, ?, ?, ?) "
+                  "ON CONFLICT (chat_id, day) DO UPDATE SET summary = excluded.summary, messages = excluded.messages, ts = excluded.ts",
+                  (chat_id, day, summary[:1500], messages, time.time()))
+
+
+def journal_get(chat_id, day):
+    return _db().execute("SELECT * FROM journal WHERE chat_id = ? AND day = ?", (chat_id, day)).fetchone()
+
+
+def journal_recent(chat_id, days=7) -> list[sqlite3.Row]:
+    rows = _db().execute("SELECT * FROM journal WHERE chat_id = ? ORDER BY day DESC LIMIT ?", (chat_id, days)).fetchall()
+    return list(reversed(rows))
+
+
+def journal_missing_days(chat_id, days: list[str]) -> list[str]:
+    have = {r["day"] for r in _db().execute("SELECT day FROM journal WHERE chat_id = ?", (chat_id,)).fetchall()}
+    return [d for d in days if d not in have]
+
+
+def chat_ids_with_messages() -> list[int]:
+    return [r[0] for r in _db().execute("SELECT DISTINCT chat_id FROM messages").fetchall()]
 
 
 def unprocessed_messages(chat_id) -> list[sqlite3.Row]:
