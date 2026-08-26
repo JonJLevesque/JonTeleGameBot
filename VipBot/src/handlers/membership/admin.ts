@@ -72,6 +72,25 @@ export interface MemberListRow {
   period_end_at: string | null; grace_until: string | null; in_group: number; in_channel: number;
 }
 
+/** Comp a membership: activate `tier` for `days` on the external rail with no payment.
+ *  Idempotent per (user, expiry day) so a repeated command doesn't double-reward. */
+export async function adminComp(env: Env, api: Api, cfg: Config, actorId: number, userId: number, tier: string, days = 30, reason = "comp"): Promise<AdminResult> {
+  if (!cfg.tiers.some((t) => t.code === tier)) return { ok: false, note: `unknown tier ${tier}` };
+  const periodEndAt = new Date(Date.now() + days * 86400000).toISOString();
+  const stub = memberStub(env, userId);
+  const snap = await stub.snapshot(userId);
+  if (snap.state === "banned") return { ok: false, note: "banned — /unban first" };
+  const r = await stub.tryApply(userId, { type: "payment_ok", rail: "external", tier, periodEndAt }, "admin", reason);
+  if (!r) return { ok: false, note: `cannot comp from state ${snap.state}` };
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO payments (user_id, rail, external_event_id, kind, amount, currency, tier, occurred_at, raw_json) VALUES (?, 'external', ?, ?, 0, 'COMP', ?, ?, ?)",
+  ).bind(userId, `comp:${userId}:${periodEndAt.slice(0, 10)}`, r.before.state === "active" || r.before.state === "grace" ? "rebill" : "initial", tier, nowIso(), JSON.stringify({ by: actorId, days, reason })).run();
+  await runEffects(env, api, cfg, userId, r.effects, r.next, reason);
+  await audit(env, actorId, "comp", userId, { tier, days, from: r.before.state, to: r.next.state });
+  return { ok: true, note: `${r.before.state} -> ${r.next.state} (${tier}, ${days}d)`, snapshot: r.next };
+}
+
+
 export async function listMembers(env: Env, filter: MemberFilter, limit = 100): Promise<MemberListRow[]> {
   const where = filter === "all" ? "" : "WHERE ms.state = ?";
   const stmt = env.DB.prepare(

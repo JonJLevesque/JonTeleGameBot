@@ -10,7 +10,7 @@ import { computeStats, formatStats, QUIET_DAYS } from "./stats";
 import { exportCsv } from "./export";
 import { seedAwards, slugify } from "../economy/awards";
 import { getStreak, saveStreak } from "../economy/claim";
-import { adminBan, adminKick, adminRefundStars, adminUnban, listMembers } from "./membership-bridge";
+import { adminBan, adminKick, adminRefundStars, adminUnban, listMembers, adminComp } from "./membership-bridge";
 
 function adminDm(ctx: Ctx): boolean {
   return ctx.chat?.type === "private" && ctx.isAdmin;
@@ -193,6 +193,19 @@ export function registerAdmin(bot: Bot<Ctx>) {
     else { const s = await getStreak(ctx.env, m.user_id); await saveStreak(ctx.env, m.user_id, { ...s, savers: Math.max(0, s.savers + n) }); }
     await audit(ctx.env, ctx.from!.id, "grant", m.user_id, { kind, n });
     await ctx.reply(`Granted ${n} ${kind} to ${m.first_name}.`);
+  });
+
+  bot.command("comp", async (ctx) => {
+    if (!adminDm(ctx)) return;
+    const [handle, tierCode, daysStr] = args(ctx);
+    const m = await target(ctx, handle);
+    const days = daysStr ? Number(daysStr) : 30;
+    if (!m || !tierCode || !Number.isInteger(days) || days < 1) {
+      await ctx.reply(`Usage: /comp @user <${ctx.cfg.tiers.map((t) => t.code).join("|")}> [days]\nFree membership, no payment. They must have messaged me once so I know their @username.`);
+      return;
+    }
+    const r = await adminComp(ctx.env, ctx.api, ctx.cfg, ctx.from!.id, m.user_id, tierCode, days);
+    await ctx.reply(r.ok ? `Comped ${m.first_name}: ${r.note}. Links are in their DM.` : `Couldn't: ${r.note}`);
   });
 
   for (const cmd of ["kick", "ban", "unban", "refund"] as const) {

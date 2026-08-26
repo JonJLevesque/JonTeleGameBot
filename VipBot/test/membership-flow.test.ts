@@ -187,3 +187,22 @@ describe("membership flow", () => {
     expect(rec.last("refundStarPayment")).toMatchObject({ user_id: uid, telegram_payment_charge_id: "chg_1" });
   });
 });
+
+import { adminComp } from "../src/handlers/membership/admin";
+
+describe("comp", () => {
+  it("activates a free membership, is idempotent per day, and refuses banned users", async () => {
+    const { bot } = await makeBot();
+    const uid = 777;
+    const r = await adminComp(E, bot.api, await loadConfig(E), 1, uid, "vipplus", 14);
+    expect(r.ok).toBe(true);
+    expect(r.snapshot).toMatchObject({ state: "active", rail: "external", tier: "vipplus" });
+    const again = await adminComp(E, bot.api, await loadConfig(E), 1, uid, "vipplus", 14);
+    expect(again.ok).toBe(true);
+    const pays = await E.DB.prepare("SELECT count(*) AS n FROM payments WHERE user_id = ?").bind(uid).first<{ n: number }>();
+    expect(pays?.n).toBe(1);
+    expect((await adminComp(E, bot.api, await loadConfig(E), 1, uid, "gold")).ok).toBe(false);
+    await memberStub(E, uid).apply(uid, { type: "ban" }, "test");
+    expect((await adminComp(E, bot.api, await loadConfig(E), 1, uid, "vip")).note).toContain("banned");
+  });
+});
