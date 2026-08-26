@@ -1,4 +1,5 @@
 /** Shop: /shop listing + buy callback, title follow-up DM, admin item + queue commands. */
+import { tierAllowsGroup } from "../../config";
 import type { Bot } from "grammy";
 import { InlineKeyboard } from "grammy";
 import type { Ctx } from "../../context";
@@ -85,6 +86,11 @@ export function registerShop(bot: Bot<Ctx>) {
     const items = await listItems(env);
     if (items.length === 0) return say(ctx, "The shop is empty right now.");
     const m = await membershipOf(env, ctx.from.id);
+    if (!m || !(m.state === "active" || m.state === "grace")) return say(ctx, "You're not a member yet — /start to join. 🌸");
+    if (!tierAllowsGroup(cfg, m.tier)) {
+      const up = cfg.tiers.find((t) => t.group);
+      return say(ctx, `The shop is part of the room. ${up ? `${up.emoji} Upgrade to ${up.name} — /start` : ""}`);
+    }
     const { level } = await getXp(env, ctx.from.id);
     const disc = level > 0 ? discountedPrice(100, level) : 100;
     const kb = new InlineKeyboard();

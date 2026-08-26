@@ -1,7 +1,7 @@
 /** Shared helpers for the economy module. */
 import type { Ctx } from "../../context";
 import type { Config } from "../../config";
-import { tierByCode } from "../../config";
+import { tierAllowsGroup, tierByCode } from "../../config";
 import type { Env } from "../../env";
 import { findMemberByUsername, getMember, type MemberRow } from "../../db";
 import { ephemeral } from "../../services/telegram";
@@ -35,6 +35,18 @@ export async function getMembership(env: Env, userId: number): Promise<Membershi
 export function isEarning(m: MembershipLite | null): boolean {
   return !!m && (m.state === "active" || m.state === "grace");
 }
+
+/** Members whose tier includes the room (the full game layer). */
+export function hasRoom(cfg: Config, m: MembershipLite | null): boolean {
+  return isEarning(m) && tierAllowsGroup(cfg, m?.tier);
+}
+
+export function upgradeLine(cfg: Config): string {
+  const up = cfg.tiers.find((t) => t.group);
+  return up ? `${up.emoji} Upgrade to ${up.name} to spend these in the room — /start` : "";
+}
+
+export const JOIN_FIRST = "You're not a member yet — /start to join. 🌸";
 
 export function xpMultiplier(cfg: Config, m: MembershipLite | null): number {
   return tierByCode(cfg, m?.tier)?.xpMultiplier ?? 1;

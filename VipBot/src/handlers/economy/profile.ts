@@ -9,7 +9,7 @@ import { getPoints, getXp } from "../../services/ledger";
 import { progressBar, titleFor } from "../../domain/levels";
 import { esc, groupSay, mention } from "../../services/telegram";
 import { getStreak } from "./claim";
-import { argsOf, displayName, getMembership, inGroup, quietReply, resolveTarget } from "./common";
+import { JOIN_FIRST, argsOf, displayName, getMembership, hasRoom, inGroup, isEarning, quietReply, resolveTarget, upgradeLine } from "./common";
 
 export async function profileCard(env: Env, cfg: Config, m: MemberRow): Promise<string> {
   const [{ xp }, points, streak, ms, awards] = await Promise.all([
@@ -29,6 +29,7 @@ export async function profileCard(env: Env, cfg: Config, m: MemberRow): Promise<
     `📅 Joined ${m.joined_at.slice(0, 10)}`,
   ];
   if (awards.results.length) lines.push(`🏅 ${awards.results.map((a) => `${a.emoji} ${esc(a.name)}`).join(" · ")}`);
+  if (isEarning(ms) && !hasRoom(cfg, ms)) lines.push("", upgradeLine(cfg));
   return lines.join("\n");
 }
 
@@ -52,6 +53,7 @@ export function registerProfile(bot: Bot<Ctx>) {
   bot.command("profile", async (ctx) => {
     if (!ctx.from) return;
     if (ctx.chat.type !== "private" && !inGroup(ctx)) return;
+    if (!isEarning(await getMembership(ctx.env, ctx.from.id))) { await quietReply(ctx, JOIN_FIRST); return; }
     const args = argsOf(ctx);
     let target: MemberRow | null = null;
     if (args[0]?.startsWith("@") || ctx.msg.reply_to_message) {
@@ -67,6 +69,11 @@ export function registerProfile(bot: Bot<Ctx>) {
 
   bot.command("leaderboard", async (ctx) => {
     if (ctx.chat.type !== "private" && !inGroup(ctx)) return;
+    if (!inGroup(ctx)) {
+      const m = await getMembership(ctx.env, ctx.from!.id);
+      if (!isEarning(m)) { await quietReply(ctx, JOIN_FIRST); return; }
+      if (!hasRoom(ctx.cfg, m)) { await quietReply(ctx, `The leaderboard lives in the room. ${upgradeLine(ctx.cfg)}`); return; }
+    }
     const arg = argsOf(ctx)[0]?.toLowerCase();
     const kind: BoardKind = arg === "points" || arg === "streak" ? arg : "xp";
     const text = await leaderboard(ctx.env, ctx.cfg, kind);

@@ -5,7 +5,7 @@ import type { Env } from "../../env";
 import type { Config } from "../../config";
 import { applyClaim, type ClaimResult, type ClaimRules, type StreakState } from "../../domain/streaks";
 import { applyPoints, applyXp } from "../../services/ledger";
-import { quietReply } from "./common";
+import { JOIN_FIRST, getMembership, isEarning, quietReply } from "./common";
 import { announceLevelUp } from "./xp";
 
 export function claimRules(cfg: Config): ClaimRules {
@@ -48,6 +48,8 @@ export function registerClaim(bot: Bot<Ctx>) {
   bot.command("claim", async (ctx) => {
     if (!ctx.from) return;
     const cfg = ctx.cfg;
+    const m = await getMembership(ctx.env, ctx.from.id);
+    if (!isEarning(m)) { await quietReply(ctx, JOIN_FIRST); return; }
     const r = await doClaim(ctx.env, cfg, ctx.from.id, ctx.day);
     if (!r.ok) {
       await quietReply(ctx, `You already claimed today. Streak: <b>${r.streak}</b> 🔥 — come back tomorrow.`);

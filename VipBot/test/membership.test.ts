@@ -56,3 +56,14 @@ describe("tier access", () => {
     expect(tierAllowsGroup(DEFAULT_CONFIG, null)).toBe(false);
   });
 });
+
+import { hasRoom, upgradeLine } from "../src/handlers/economy/common";
+
+describe("VIP taste vs room", () => {
+  it("only active room-tier members have the room; VIP gets an upsell line", () => {
+    expect(hasRoom(DEFAULT_CONFIG, { state: "active", tier: "vip" })).toBe(false);
+    expect(hasRoom(DEFAULT_CONFIG, { state: "active", tier: "vipplus" })).toBe(true);
+    expect(hasRoom(DEFAULT_CONFIG, { state: "lapsed", tier: "vipplus" })).toBe(false);
+    expect(upgradeLine(DEFAULT_CONFIG)).toContain("VIP+");
+  });
+});
