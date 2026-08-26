@@ -32,6 +32,74 @@ def enabled() -> bool:
     return bool(token())
 
 
+async def _send(method: str, path: str, body: dict | None = None):
+    """Write call. Returns (status, json)."""
+    headers = {"Authorization": f"Bearer {token()}", "Accept": "application/vnd.github+json",
+               "X-GitHub-Api-Version": "2022-11-28"}
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.request(method, API + path, json=body, headers=headers)
+    try:
+        j = r.json()
+    except Exception:
+        j = {}
+    if r.status_code >= 400:
+        log.warning("github %s %s -> %s %s", method, path, r.status_code, str(j)[:200])
+    return r.status_code, j
+
+
+def error_text(j: dict) -> str:
+    msg = j.get("message", "unknown error")
+    details = "; ".join(
+        e.get("message") or f"{e.get('field', '?')} {e.get('code', '')}".strip()
+        for e in j.get("errors", []) if isinstance(e, dict)
+    )
+    return f"{msg}" + (f" — {details}" if details else "")
+
+
+async def branches(repo: str) -> list[str]:
+    st, j, _ = await _get(f"/repos/{repo}/branches", {"per_page": 50})
+    return [b["name"] for b in (j or [])] if st == 200 else []
+
+
+async def create_pull(repo: str, head: str, base: str, title: str, body: str) -> tuple[dict | None, str]:
+    st, j = await _send("POST", f"/repos/{repo}/pulls", {"title": title, "head": head, "base": base, "body": body})
+    return (j, "") if st == 201 else (None, error_text(j))
+
+
+async def create_issue(repo: str, title: str, body: str) -> tuple[dict | None, str]:
+    st, j = await _send("POST", f"/repos/{repo}/issues", {"title": title, "body": body})
+    return (j, "") if st == 201 else (None, error_text(j))
+
+
+async def get_pull(repo: str, number: int) -> dict | None:
+    st, j, _ = await _get(f"/repos/{repo}/pulls/{number}")
+    return j if st == 200 else None
+
+
+async def review_pull(repo: str, number: int, event: str, body: str = "") -> tuple[bool, str]:
+    st, j = await _send("POST", f"/repos/{repo}/pulls/{number}/reviews", {"event": event, "body": body})
+    return (True, "") if st == 200 else (False, error_text(j))
+
+
+async def merge_pull(repo: str, number: int, method: str = "squash") -> tuple[bool, str]:
+    st, j = await _send("PUT", f"/repos/{repo}/pulls/{number}/merge", {"merge_method": method})
+    return (st == 200, "" if st == 200 else error_text(j))
+
+
+def parse_pr_ref(arg: str) -> tuple[str, int] | None:
+    """'owner/repo#12' or a PR URL → (repo, number)."""
+    arg = arg.strip().removeprefix("https://github.com/")
+    if "/pull/" in arg:
+        repo, _, num = arg.partition("/pull/")
+        num = num.split("/")[0]
+    elif "#" in arg:
+        repo, _, num = arg.partition("#")
+    else:
+        return None
+    r = parse_repo(repo)
+    return (r, int(num)) if r and num.isdigit() else None
+
+
 async def _get(path: str, params: dict | None = None, etag: str | None = None):
     """Returns (status, json, etag). 304 → (304, None, etag)."""
     headers = {"Authorization": f"Bearer {token()}", "Accept": "application/vnd.github+json",

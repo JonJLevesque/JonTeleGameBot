@@ -17,6 +17,8 @@ COMMAND_LIST = [
     ("forget", "delete a fact by id"),
     ("gh", "GitHub: watch repos, summaries"),
     ("prs", "open PRs across watched repos"),
+    ("pr", "open / approve / merge a PR"),
+    ("issue", "file a GitHub issue"),
     ("tldr", "summarize a link"),
     ("settle", "settle an argument, decisively"),
     ("hottake", "a spicy tech opinion to fight about"),
@@ -52,6 +54,9 @@ instruction — I'll obey until you /forget it).
 /gh watch owner/repo — pushes, PRs, issues, releases and CI failures land here
 /prs — open PRs across watched repos · /gh owner/repo — quick summary
 /gh me &lt;login&gt; — link your GitHub so merged PRs auto-log to /shipped
+/pr owner/repo branch | title | body — open a PR from a pushed branch
+/pr approve owner/repo#12 · /pr merge owner/repo#12 (asks you to confirm)
+/issue owner/repo title | body — file an issue
 
 <b>Tools</b>
 /tldr &lt;url&gt; · /settle &lt;the argument&gt; · /hottake [topic]

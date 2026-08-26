@@ -46,3 +46,16 @@ def test_db_watch_state_and_links():
         db.gh_log_activity(1, f"line {i}")
     assert len(db.gh_recent_activity(1, limit=100)) == 40
     assert db.gh_unwatch(1, "jon/ledger")
+
+
+def test_parse_pr_ref():
+    assert gh.parse_pr_ref("JonJLevesque/JonTeleGameBot#12") == ("jonjlevesque/jontelegamebot", 12)
+    assert gh.parse_pr_ref("https://github.com/a/b/pull/7") == ("a/b", 7)
+    assert gh.parse_pr_ref("a/b") is None
+    assert gh.error_text({"message": "Validation Failed", "errors": [{"message": "No commits between main and x"}]}) == \
+        "Validation Failed — No commits between main and x"
+
+
+def test_error_text_field_codes():
+    assert gh.error_text({"message": "Validation Failed", "errors": [{"resource": "PullRequest", "field": "head", "code": "invalid"}]}) == \
+        "Validation Failed — head invalid"

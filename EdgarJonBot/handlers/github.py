@@ -3,8 +3,8 @@ import html
 import logging
 import time
 
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
 
 import db
 import github as gh
@@ -103,6 +103,143 @@ async def prs_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.effective_message.reply_html("\n".join(lines), disable_web_page_preview=True)
 
 
+# ------------------------------------------------------------------ writes
+
+def _split_title_body(text: str) -> tuple[str, str]:
+    title, _, body = text.partition("|")
+    return title.strip()[:200], body.strip()
+
+
+def _linked(chat_id: int, user) -> str | None:
+    row = None
+    for u in db.gh_logins(chat_id):
+        if u["user_id"] == user.id:
+            row = u
+    return row["login"] if row else None
+
+
+async def pr_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/pr owner/repo head [base] | title | body  ·  /pr approve owner/repo#n  ·  /pr merge owner/repo#n"""
+    msg = update.effective_message
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    if not gh.enabled():
+        await msg.reply_text("GitHub isn't connected.")
+        return
+    login = _linked(chat_id, user)
+    if not login:
+        await msg.reply_text("Link your GitHub first: /gh me <login> — writes are attributed, so I want to know who's asking.")
+        return
+    raw = " ".join(context.args or [])
+    if not raw:
+        await msg.reply_text(
+            "/pr owner/repo head-branch [base] | title | body — open a PR from an existing branch\n"
+            "/pr approve owner/repo#12 [comment] · /pr merge owner/repo#12 [squash|merge|rebase]\n"
+            "/issue owner/repo title | body"
+        )
+        return
+    words = raw.split()
+    sub = words[0].lower()
+    if sub in ("approve", "merge") and len(words) >= 2:
+        ref = gh.parse_pr_ref(words[1])
+        if not ref:
+            await msg.reply_text("Which PR? owner/repo#12 or a PR link.")
+            return
+        repo, num = ref
+        pr = await gh.get_pull(repo, num)
+        if not pr:
+            await msg.reply_text("Can't find that PR.")
+            return
+        if sub == "approve":
+            ok, err = await gh.review_pull(repo, num, "APPROVE", " ".join(words[2:]) or f"Approved from Telegram by {login}")
+            await msg.reply_html(f"👍 Approved <a href=\"{html.escape(pr['html_url'])}\">{html.escape(repo.split('/')[-1])}#{num}</a>." if ok else f"GitHub said no: {html.escape(err)}")
+            return
+        method = words[2].lower() if len(words) > 2 and words[2].lower() in ("squash", "merge", "rebase") else "squash"
+        if pr.get("merged"):
+            await msg.reply_text("Already merged.")
+            return
+        if pr.get("mergeable") is False:
+            await msg.reply_text("GitHub says it isn't mergeable (conflicts?). Fix that first.")
+            return
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton(f"✅ {method} merge #{num}", callback_data=f"ghm:{user.id}:{method}:{repo}#{num}"),
+            InlineKeyboardButton("Cancel", callback_data=f"ghm:{user.id}:cancel:{repo}#{num}"),
+        ]])
+        await msg.reply_html(
+            f"Merge <a href=\"{html.escape(pr['html_url'])}\">{html.escape(repo.split('/')[-1])}#{num}</a> "
+            f"<b>{html.escape(pr['title'])}</b> ({html.escape(pr['head']['ref'])} → {html.escape(pr['base']['ref'])}) via {method}?",
+            reply_markup=kb, disable_web_page_preview=True,
+        )
+        return
+    # create: owner/repo head [base] | title | body
+    head_part, title, body = (raw.split("|") + ["", ""])[:3] if "|" in raw else (raw, "", "")
+    parts = head_part.split()
+    repo = gh.parse_repo(parts[0]) if parts else None
+    if not repo or len(parts) < 2 or not title.strip():
+        await msg.reply_text("Usage: /pr owner/repo head-branch [base] | title | body")
+        return
+    head = parts[1]
+    base = parts[2] if len(parts) > 2 else db.gh_get(repo, "default_branch") or (await gh.repo_info(repo) or {}).get("default_branch", "main")
+    names = await gh.branches(repo)
+    if names and head not in names:
+        close = [n for n in names if head.lower() in n.lower()][:5]
+        await msg.reply_text(f"No branch “{head}” in {repo}." + (f" Did you mean: {', '.join(close)}" if close else f" Branches: {', '.join(names[:10])}"))
+        return
+    body_text = (body.strip() + f"\n\n_Opened from Telegram by @{login}._").strip()
+    pr, err = await gh.create_pull(repo, head, base, title.strip(), body_text)
+    if not pr:
+        await msg.reply_text(f"GitHub said no: {err}")
+        return
+    db.gh_log_activity(chat_id, f"{login} opened PR #{pr['number']} in {repo.split('/')[-1]}: {title.strip()}")
+    await msg.reply_html(f"🔀 Opened <a href=\"{html.escape(pr['html_url'])}\">{html.escape(repo.split('/')[-1])}#{pr['number']}</a>: {html.escape(title.strip())} ({html.escape(head)} → {html.escape(base)})", disable_web_page_preview=True)
+
+
+async def issue_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.effective_message
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    login = _linked(chat_id, user)
+    if not gh.enabled() or not login:
+        await msg.reply_text("Link your GitHub first: /gh me <login>")
+        return
+    raw = " ".join(context.args or [])
+    parts = raw.split(maxsplit=1)
+    repo = gh.parse_repo(parts[0]) if parts else None
+    if not repo or len(parts) < 2:
+        await msg.reply_text("Usage: /issue owner/repo title | body")
+        return
+    title, body = _split_title_body(parts[1])
+    if not title:
+        await msg.reply_text("Usage: /issue owner/repo title | body")
+        return
+    iss, err = await gh.create_issue(repo, title, (body + f"\n\n_Filed from Telegram by @{login}._").strip())
+    if not iss:
+        await msg.reply_text(f"GitHub said no: {err}")
+        return
+    db.gh_log_activity(chat_id, f"{login} opened issue #{iss['number']} in {repo.split('/')[-1]}: {title}")
+    await msg.reply_html(f"🐛 Opened <a href=\"{html.escape(iss['html_url'])}\">{html.escape(repo.split('/')[-1])}#{iss['number']}</a>: {html.escape(title)}", disable_web_page_preview=True)
+
+
+async def merge_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    _, owner, method, ref = q.data.split(":", 3)
+    if q.from_user.id != int(owner):
+        await q.answer("Not your merge button.")
+        return
+    await q.answer()
+    if method == "cancel":
+        await q.edit_message_text("Merge cancelled.")
+        return
+    repo, num = gh.parse_pr_ref(ref)
+    ok, err = await gh.merge_pull(repo, num, method)
+    if ok:
+        login = _linked(q.message.chat_id, q.from_user) or q.from_user.first_name
+        db.gh_log_activity(q.message.chat_id, f"{login} merged PR #{num} in {repo.split('/')[-1]} via {method}")
+        await q.edit_message_text(f"✅ Merged {repo.split('/')[-1]}#{num} ({method}).")
+    else:
+        await q.edit_message_text(f"Merge failed: {err}")
+
+
 # ------------------------------------------------------------------ polling
 
 async def poll(context: ContextTypes.DEFAULT_TYPE):
@@ -181,4 +318,10 @@ def schedule(app: Application):
 
 
 def get_handlers():
-    return [CommandHandler("gh", gh_cmd), CommandHandler(["prs", "pulls"], prs_cmd)]
+    return [
+        CommandHandler("gh", gh_cmd),
+        CommandHandler(["prs", "pulls"], prs_cmd),
+        CommandHandler("pr", pr_cmd),
+        CommandHandler("issue", issue_cmd),
+        CallbackQueryHandler(merge_callback, pattern=r"^ghm:\d+:"),
+    ]
