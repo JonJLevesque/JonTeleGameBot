@@ -1,4 +1,4 @@
-from . import brain, github, help, ideas, listener, memory, reminders, shipping, tools
+from . import brain, github, help, ideas, listener, memory, reminders, shipping, tools, wordle
 
 
 def all_handlers():
@@ -9,6 +9,7 @@ def all_handlers():
         + reminders.get_handlers()
         + brain.get_handlers()
         + tools.get_handlers()
+        + wordle.get_handlers()
         + github.get_handlers()
         + memory.get_handlers()
         + listener.get_handlers()

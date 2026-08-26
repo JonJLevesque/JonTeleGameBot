@@ -21,6 +21,7 @@ COMMAND_LIST = [
     ("prs", "open PRs across watched repos"),
     ("pr", "open / approve / merge a PR"),
     ("issue", "file a GitHub issue"),
+    ("wordle", "today's NYT Wordle, head-to-head"),
     ("tldr", "summarize a link"),
     ("settle", "settle an argument, decisively"),
     ("hottake", "a spicy tech opinion to fight about"),
@@ -64,9 +65,21 @@ Watched repos get a card (README, tree, commits) I keep in mind; /gh refresh
 /pr approve owner/repo#12 · /pr merge owner/repo#12 (asks you to confirm)
 /issue owner/repo title | body — file an issue
 
+<b>Wordle</b>
+/wordle — the real NYT puzzle, played in my DMs; grids auto-post here and
+whoever solves it in fewer guesses takes the day's duel
+
 <b>Tools</b>
 /tldr &lt;url&gt; · /settle &lt;the argument&gt; · /hottake [topic]
 /duck — explain your bug, I only ask questions. /duck stop"""
+
+
+async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == "private" and context.args and context.args[0] == "wordle":
+        from . import wordle
+        await wordle.begin_from_start(update, context)
+        return
+    await help_cmd(update, context)
 
 
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,4 +87,4 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def get_handlers():
-    return [CommandHandler(["help", "start"], help_cmd)]
+    return [CommandHandler("help", help_cmd), CommandHandler("start", start_cmd)]

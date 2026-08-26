@@ -66,6 +66,18 @@ def init(path: str) -> None:
             messages INTEGER NOT NULL DEFAULT 0, ts REAL NOT NULL,
             PRIMARY KEY (chat_id, day)
         );
+        CREATE TABLE IF NOT EXISTS wordle_days (
+            day TEXT PRIMARY KEY, number INTEGER NOT NULL, word TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS wordle_plays (
+            user_id INTEGER NOT NULL, day TEXT NOT NULL, first_name TEXT NOT NULL,
+            guesses TEXT NOT NULL DEFAULT '[]', done INTEGER NOT NULL DEFAULT 0, won INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, day)
+        );
+        CREATE TABLE IF NOT EXISTS wordle_duels (
+            chat_id INTEGER NOT NULL, day TEXT NOT NULL, winner_id INTEGER,
+            PRIMARY KEY (chat_id, day)
+        );
         CREATE TABLE IF NOT EXISTS gh_watch (
             chat_id INTEGER NOT NULL, repo TEXT NOT NULL, added_by TEXT NOT NULL,
             PRIMARY KEY (chat_id, repo)
@@ -506,3 +518,60 @@ def gh_log_activity(chat_id, line) -> None:
 def gh_recent_activity(chat_id, limit=12) -> list[str]:
     rows = _db().execute("SELECT line FROM gh_activity WHERE chat_id = ? ORDER BY id DESC LIMIT ?", (chat_id, limit)).fetchall()
     return [r["line"] for r in reversed(rows)]
+
+
+# ----------------------------------------------------------------- wordle
+
+def chats_for_user(user_id) -> list[int]:
+    return [r[0] for r in _db().execute("SELECT chat_id FROM users WHERE user_id = ?", (user_id,)).fetchall()]
+
+
+def chats_with_min_members(n=2) -> list[int]:
+    return [r[0] for r in _db().execute("SELECT chat_id FROM users GROUP BY chat_id HAVING COUNT(*) >= ?", (n,)).fetchall()]
+
+
+def wordle_day(day):
+    return _db().execute("SELECT * FROM wordle_days WHERE day = ?", (day,)).fetchone()
+
+
+def save_wordle_day(day, number, word) -> None:
+    with _db() as c:
+        c.execute("INSERT OR IGNORE INTO wordle_days (day, number, word) VALUES (?, ?, ?)", (day, number, word))
+
+
+def wordle_play(user_id, day):
+    return _db().execute("SELECT * FROM wordle_plays WHERE user_id = ? AND day = ?", (user_id, day)).fetchone()
+
+
+def save_wordle_play(user_id, day, first_name, guesses, done, won) -> None:
+    import json
+    with _db() as c:
+        c.execute("INSERT INTO wordle_plays (user_id, day, first_name, guesses, done, won) VALUES (?, ?, ?, ?, ?, ?) "
+                  "ON CONFLICT (user_id, day) DO UPDATE SET guesses = excluded.guesses, done = excluded.done, won = excluded.won",
+                  (user_id, day, first_name, json.dumps(guesses), int(done), int(won)))
+
+
+def wordle_finishers(chat_id, day):
+    return _db().execute("SELECT p.* FROM wordle_plays p JOIN users u ON u.user_id = p.user_id AND u.chat_id = ? "
+                         "WHERE p.day = ? AND p.done = 1 ORDER BY p.rowid", (chat_id, day)).fetchall()
+
+
+def wordle_duel(chat_id, day):
+    return _db().execute("SELECT * FROM wordle_duels WHERE chat_id = ? AND day = ?", (chat_id, day)).fetchone()
+
+
+def save_wordle_duel(chat_id, day, winner_id) -> None:
+    with _db() as c:
+        c.execute("INSERT OR IGNORE INTO wordle_duels (chat_id, day, winner_id) VALUES (?, ?, ?)", (chat_id, day, winner_id))
+
+
+def wordle_user_days(user_id) -> list:
+    import json
+    rows = _db().execute("SELECT day, won, guesses FROM wordle_plays WHERE user_id = ? AND done = 1 ORDER BY day DESC", (user_id,)).fetchall()
+    return [(r["day"], bool(r["won"]), len(json.loads(r["guesses"]))) for r in rows]
+
+
+def wordle_duel_wins(chat_id, user_id, since_day=None) -> int:
+    if since_day:
+        return _db().execute("SELECT COUNT(*) FROM wordle_duels WHERE chat_id = ? AND winner_id = ? AND day >= ?", (chat_id, user_id, since_day)).fetchone()[0]
+    return _db().execute("SELECT COUNT(*) FROM wordle_duels WHERE chat_id = ? AND winner_id = ?", (chat_id, user_id)).fetchone()[0]

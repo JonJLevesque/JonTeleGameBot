@@ -13,7 +13,7 @@ from telegram.ext import Application, ContextTypes
 
 import config
 import db
-from handlers import all_handlers, github, listener, memory, reminders, shipping
+from handlers import all_handlers, github, listener, memory, reminders, shipping, wordle
 from handlers.common import LOCAL_TZ
 from handlers.help import COMMAND_LIST
 
@@ -43,6 +43,7 @@ async def _post_init(app: Application):
     listener.schedule(app)
     github.schedule(app)
     memory.schedule(app)
+    wordle.schedule(app)
     app.job_queue.run_daily(_backup, time(3, 45, tzinfo=LOCAL_TZ), name="backup")
     log.info("%s online as @%s (ai=%s, model=%s)", config.BOT_NAME, app.bot.username,
              __import__("ai").ENABLED, config.AI_MODEL)
