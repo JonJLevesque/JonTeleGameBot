@@ -20,8 +20,8 @@ const TEASE_COOLDOWN_SEC = 2 * 3600;
 const PETALS_PER_MSG = 1;
 const PETALS_DAILY_CAP = 5;
 const PETALS_MAX = 50;
-const PASS_DAYS = 1;
 const MEMBER_WIN_POINTS = 25;
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 function inLobby(ctx: Ctx): boolean {
   return !!ctx.chat && ctx.cfg.lobbyChatId !== 0 && ctx.chat.id === ctx.cfg.lobbyChatId;
@@ -92,19 +92,28 @@ function postKind(m: { photo?: unknown; video?: unknown; video_note?: unknown; v
 
 // ------------------------------------------------------------ win-a-pass trivia
 
-export async function runLobbyTrivia(env: Env, cfg: Config, api: Api): Promise<boolean> {
+/** True once the Lobby is big enough for win-a-pass trivia to be worth running. */
+export async function lobbyBigEnough(cfg: Config, api: Api): Promise<boolean> {
   if (!cfg.lobbyChatId) return false;
+  const n = await api.getChatMemberCount(cfg.lobbyChatId).catch(() => 0);
+  return n - 1 >= cfg.lobby.minMembers; // minus the bot itself
+}
+
+export async function runLobbyTrivia(env: Env, cfg: Config, api: Api, opts: { force?: boolean } = {}): Promise<{ ok: boolean; reason?: string }> {
+  if (!cfg.lobbyChatId) return { ok: false, reason: "no_lobby" };
+  if (!opts.force && !(await lobbyBigEnough(cfg, api))) return { ok: false, reason: "too_small" };
+  const PASS_DAYS = cfg.lobby.passDays;
   const picked = await pickQuestion(env);
-  if (!picked) return false;
+  if (!picked) return { ok: false, reason: "no_questions" };
   const q = shuffleQuiz(picked.quiz, Math.random);
   const msg = await api.sendPoll(cfg.lobbyChatId, `🎟 Win a ${PASS_DAYS * 24}-hour pass to ${cfg.roomNames.feed}: ${q.question}`, q.options.map((o) => ({ text: o })), {
     type: "quiz", correct_option_ids: [q.correctIdx], is_anonymous: false, open_period: 90,
     explanation: `Fastest correct answer wins the pass. Members who win get +${MEMBER_WIN_POINTS} ${cfg.pointsName} instead.`,
   }).catch((e) => { console.warn("lobby poll failed", String(e)); return null; });
-  if (!msg?.poll) return false;
+  if (!msg?.poll) return { ok: false, reason: "send_failed" };
   await env.KV.put(`lobbyquiz:${msg.poll.id}`, JSON.stringify({ correct: q.correctIdx, at: nowIso() }), { expirationTtl: 3600 });
   if (picked.bankId) await env.DB.prepare("UPDATE trivia_bank SET used_at = ? WHERE id = ?").bind(nowIso(), picked.bankId).run();
-  return true;
+  return { ok: true };
 }
 
 async function onLobbyAnswer(ctx: Ctx): Promise<boolean> {
@@ -125,6 +134,7 @@ async function onLobbyAnswer(ctx: Ctx): Promise<boolean> {
     await ctx.api.sendMessage(cfg.lobbyChatId, `🏆 ${mention(uid, pa.user.first_name)} was fastest — already a member, so +${MEMBER_WIN_POINTS} ${esc(cfg.pointsName)} inside.`, { parse_mode: "HTML" });
     return true;
   }
+  const PASS_DAYS = cfg.lobby.passDays;
   const r = await adminComp(ctx.env, ctx.api, cfg, 0, uid, cfg.tiers[0]!.code, PASS_DAYS, "lobby_trivia");
   const text = r.ok
     ? `🏆 ${mention(uid, pa.user.first_name)} was fastest and wins a <b>${PASS_DAYS * 24}-hour pass</b> to ${esc(cfg.roomNames.feed)} — check your DMs. Everyone else: tomorrow, same time.`
@@ -148,7 +158,7 @@ export async function postLobbyDigest(env: Env, cfg: Config, api: Api, botUserna
     joined?.n ? `• ${joined.n} new member${joined.n === 1 ? "" : "s"} walked in` : null,
     crates?.n ? `• ${crates.n} crate${crates.n === 1 ? "" : "s"} claimed in ${esc(cfg.roomNames.room)}` : null,
     top ? `• Top fan: <b>${esc(top.first_name)}</b>` : null,
-    `• Win-a-pass trivia here every day at 19:00`,
+    `• Win-a-pass trivia here every ${WEEKDAYS[cfg.lobby.triviaWeekday]} at ${String(cfg.lobby.triviaHour).padStart(2, "0")}:00`,
   ].filter(Boolean);
   await api.sendMessage(cfg.lobbyChatId, lines.join("\n"), { parse_mode: "HTML", reply_markup: joinButton(cfg, botUsername) }).catch((e) => console.warn("digest failed", String(e)));
 }

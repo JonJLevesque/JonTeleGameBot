@@ -43,11 +43,14 @@ async function scheduledTrivia(env: Env, cfg: Config, api: Api) {
   await startTriviaRound(env, cfg, api, cfg.groupChatId, { threadId: cfg.gamesTopicId ?? undefined });
 }
 
-/** Win-a-pass trivia in the Lobby at 19:00 creator time, once per day. */
+/** Win-a-pass trivia in the Lobby: weekly (cfg.lobby.triviaWeekday/Hour), only once the Lobby
+ *  has cfg.lobby.minMembers people. Guarded per day so a retry never double-posts. */
 async function scheduledLobbyTrivia(env: Env, cfg: Config, api: Api) {
-  if (!cfg.lobbyChatId || localHour(cfg.creatorTz) !== 19) return;
-  const key = `lobby_trivia_daily:${localDay(cfg.creatorTz)}`;
+  if (!cfg.lobbyChatId) return;
+  if (localWeekday(cfg.creatorTz) !== cfg.lobby.triviaWeekday || localHour(cfg.creatorTz) !== cfg.lobby.triviaHour) return;
+  const key = `lobby_trivia:${localDay(cfg.creatorTz)}`;
   if (await env.KV.get(key)) return;
-  await env.KV.put(key, "1", { expirationTtl: 86400 });
-  await runLobbyTrivia(env, cfg, api);
+  const r = await runLobbyTrivia(env, cfg, api);
+  if (r.ok) await env.KV.put(key, "1", { expirationTtl: 86400 });
+  else console.log("lobby trivia skipped:", r.reason);
 }

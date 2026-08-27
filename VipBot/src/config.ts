@@ -27,6 +27,7 @@ export interface Config {
   channelChatId: number;       // the paid feed ("the Lounge")
   lobbyChatId: number;         // free public chat where the funnel starts ("the Lobby")
   roomNames: { lobby: string; feed: string; room: string };
+  lobby: { triviaWeekday: number; triviaHour: number; passDays: number; minMembers: number }; // weekday 0=Sun…6=Sat
   gamesTopicId: number | null;
   tiers: TierConfig[];
   attestationVersion: number;
@@ -60,6 +61,7 @@ export const DEFAULT_CONFIG: Config = {
   channelChatId: 0,
   lobbyChatId: 0,
   roomNames: { lobby: "the Lobby", feed: "the Lounge", room: "the Backroom" },
+  lobby: { triviaWeekday: 5, triviaHour: 19, passDays: 1, minMembers: 10 },
   gamesTopicId: null,
   tiers: [
     { code: "vip", name: "VIP", emoji: "🌸", stars: 500, usd: 9.99, xpMultiplier: 1, renewalPoints: 100, voteWeight: 1, group: false },

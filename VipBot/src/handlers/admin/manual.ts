@@ -7,8 +7,9 @@ export function manual(cfg: Config): string {
   return `
 COMMUNITY: "${cfg.communityName}" run by ${cfg.creatorName}. Three rooms:
 - ${cfg.roomNames.lobby} (LOBBY): free public chat and the upsell floor. The bot greets newcomers with the pitch and a Join button (/join repeats it);
-  teases the Lobby whenever the creator posts in the channel (at most once per 2h, with an Unlock button); runs WIN-A-PASS TRIVIA daily at
-  19:00 (fastest correct answer gets a 24h comped pass to the feed; members who win get +25 ${cfg.pointsName} instead) — /lobbytrivia posts one now;
+  teases the Lobby whenever the creator posts in the channel (at most once per 2h, with an Unlock button); runs WIN-A-PASS TRIVIA once a week (weekday ${cfg.lobby.triviaWeekday}, 0=Sunday, at ${cfg.lobby.triviaHour}:00) but only once the Lobby
+  has ${cfg.lobby.minMembers}+ people; fastest correct answer gets a ${cfg.lobby.passDays}-day comped pass to the feed; members who win get +25 ${cfg.pointsName} instead.
+  /lobbytrivia posts one now regardless of size; /setup lobbytrivia <weekday> <hour> [passDays] [minMembers] changes the schedule;
   banks "Lobby Petals" for people who chat there (1 per message, 5/day, 50 max) which are credited when they join; posts a weekly
   "inside this week" digest on Monday. No XP, drops or games in the Lobby.
 - ${cfg.roomNames.feed} (CHANNEL): the paid feed where only the creator posts. Every paid tier gets in.

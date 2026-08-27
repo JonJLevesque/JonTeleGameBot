@@ -134,6 +134,17 @@ export function registerAdmin(bot: Bot<Ctx>) {
         await ctx.reply(`Rooms are now ${roomNames.lobby} → ${roomNames.feed} → ${roomNames.room}.`);
         return;
       }
+      case "lobbytrivia": {
+        // /setup lobbytrivia <weekday 0-6> <hour> [passDays] [minMembers]
+        const nums = rest.map(Number);
+        const wd = nums[0] ?? NaN, hr = nums[1] ?? NaN, pd = nums[2] ?? NaN, mm = nums[3] ?? NaN;
+        if (!Number.isInteger(wd) || wd < 0 || wd > 6 || !Number.isInteger(hr) || hr < 0 || hr > 23) { await ctx.reply("Usage: /setup lobbytrivia <weekday 0=Sun…6=Sat> <hour 0-23> [passDays] [minMembers]"); return; }
+        const lobby = { ...ctx.cfg.lobby, triviaWeekday: wd, triviaHour: hr, ...(Number.isInteger(pd) && pd > 0 ? { passDays: pd } : {}), ...(Number.isInteger(mm) && mm >= 0 ? { minMembers: mm } : {}) };
+        await setConfig(ctx.env, "lobby", lobby);
+        await audit(ctx.env, uid, "setup.lobbytrivia", undefined, lobby);
+        await ctx.reply(`Win-a-pass trivia: weekday ${wd} at ${hr}:00, ${lobby.passDays}-day pass, needs ${lobby.minMembers}+ in the Lobby.`);
+        return;
+      }
       case "price": {
         const [code, stars, usd] = rest;
         const tiers = structuredClone(ctx.cfg.tiers);
@@ -210,8 +221,8 @@ export function registerAdmin(bot: Bot<Ctx>) {
 
   bot.command("lobbytrivia", async (ctx) => {
     if (!adminDm(ctx)) return;
-    const ok = await runLobbyTrivia(ctx.env, ctx.cfg, ctx.api);
-    await ctx.reply(ok ? "Posted a win-a-pass question in the Lobby." : "Couldn't — is the Lobby set (/setup lobby) and the trivia bank stocked (/q add)?");
+    const r = await runLobbyTrivia(ctx.env, ctx.cfg, ctx.api, { force: true });
+    await ctx.reply(r.ok ? "Posted a win-a-pass question in the Lobby." : `Couldn't (${r.reason}) — is the Lobby set (/setup lobby) and the trivia bank stocked (/q add)?`);
   });
 
   bot.command("comp", async (ctx) => {
