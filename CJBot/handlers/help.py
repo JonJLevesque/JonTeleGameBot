@@ -131,8 +131,24 @@ COMMAND_LIST = [
 ]
 
 
+def _chunks(text: str, limit: int = 3900) -> list[str]:
+    """Split on blank lines so each piece stays under Telegram's 4096-char cap."""
+    out, cur = [], ""
+    for para in text.split("\n\n"):
+        cand = f"{cur}\n\n{para}" if cur else para
+        if len(cand) > limit and cur:
+            out.append(cur)
+            cur = para
+        else:
+            cur = cand
+    if cur:
+        out.append(cur)
+    return out
+
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.effective_message.reply_html(HELP_TEXT)
+    for part in _chunks(HELP_TEXT):
+        await update.effective_message.reply_html(part)
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
