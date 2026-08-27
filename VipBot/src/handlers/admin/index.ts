@@ -51,7 +51,7 @@ async function setupText(ctx: Ctx): Promise<string> {
   const c = ctx.cfg;
   return [
     `<b>${esc(c.communityName)}</b> by ${esc(c.creatorName)}`,
-    `group: <code>${c.groupChatId}</code> · channel: <code>${c.channelChatId}</code>`,
+    `lobby: <code>${c.lobbyChatId}</code> · channel: <code>${c.channelChatId}</code> · group: <code>${c.groupChatId}</code>`,
     `tz: ${esc(c.creatorTz)} · ai: ${c.aiEnabled ? "on" : "off"} (${esc(c.aiModel)})`,
     `tiers: ${c.tiers.map((t) => `${t.emoji} ${esc(t.code)} ${t.stars}⭐/$${t.usd}`).join(", ")}`,
     "", "/setup lobby|channel|group &lt;id&gt; · names &lt;lobby&gt; | &lt;feed&gt; | &lt;room&gt; · tz &lt;IANA&gt; · name &lt;text&gt; · creator &lt;text&gt; · ai on|off · price &lt;tier&gt; &lt;stars&gt; &lt;usd&gt; · access &lt;tier&gt; feed|both",
