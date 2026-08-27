@@ -65,6 +65,7 @@ async function setAi(ctx: Ctx, on: boolean) {
 }
 
 import { registerAssistant } from "./assistant";
+import { runLobbyTrivia } from "../lobby";
 
 export function registerAdmin(bot: Bot<Ctx>) {
   registerAssistant(bot);
@@ -205,6 +206,12 @@ export function registerAdmin(bot: Bot<Ctx>) {
     else { const s = await getStreak(ctx.env, m.user_id); await saveStreak(ctx.env, m.user_id, { ...s, savers: Math.max(0, s.savers + n) }); }
     await audit(ctx.env, ctx.from!.id, "grant", m.user_id, { kind, n });
     await ctx.reply(`Granted ${n} ${kind} to ${m.first_name}.`);
+  });
+
+  bot.command("lobbytrivia", async (ctx) => {
+    if (!adminDm(ctx)) return;
+    const ok = await runLobbyTrivia(ctx.env, ctx.cfg, ctx.api);
+    await ctx.reply(ok ? "Posted a win-a-pass question in the Lobby." : "Couldn't — is the Lobby set (/setup lobby) and the trivia bank stocked (/q add)?");
   });
 
   bot.command("comp", async (ctx) => {

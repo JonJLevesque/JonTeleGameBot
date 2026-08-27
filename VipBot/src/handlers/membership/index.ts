@@ -1,5 +1,6 @@
 /** Membership events from Telegram: join requests on personal links, channel joins via Stars
  *  subscription links, presence tracking, and the public welcome ritual. */
+import { redeemLobbyPetals } from "../lobby";
 import { tierAllowsGroup } from "../../config";
 import type { Bot } from "grammy";
 import type { ChatInviteLink, ChatMemberUpdated } from "grammy/types";
@@ -104,10 +105,11 @@ async function onStarsJoin(env: Env, ctx: Ctx, cfg: Config, uid: number, link: C
 async function welcome(ctx: Ctx, uid: number, firstName: string) {
   const { env, cfg } = ctx;
   const pts = await applyPoints(env, uid, cfg.welcomePoints, "welcome", { ref: `welcome:${uid}` });
+  const banked = await redeemLobbyPetals(env, uid);
   if (!pts.applied) return; // been here before
   await groupSay(ctx.api, cfg, `🌹 A new petal falls. Welcome ${mention(uid, firstName)}.`, { effectId: EFFECT.party });
   await ephemeral(ctx.api, cfg.groupChatId, uid,
-    `Welcome in. Quick start:\n• <b>/claim</b> — daily ${cfg.pointsEmoji} ${esc(cfg.pointsName)} (streaks pay more)\n• Chat to earn ${cfg.xpEmoji} ${esc(cfg.xpName)} and level up\n• <b>/profile</b> — see where you stand\n\nYou start with ${cfg.welcomePoints} ${esc(cfg.pointsName)}. 🌸`);
+    `Welcome in. Quick start:\n• <b>/claim</b> — daily ${cfg.pointsEmoji} ${esc(cfg.pointsName)} (streaks pay more)\n• Chat to earn ${cfg.xpEmoji} ${esc(cfg.xpName)} and level up\n• <b>/profile</b> — see where you stand\n\nYou start with ${cfg.welcomePoints + banked} ${esc(cfg.pointsName)}${banked ? ` — ${banked} of them you banked in ${esc(cfg.roomNames.lobby)}` : ""}. 🌸`);
 }
 
 function isStarsLink(link: ChatInviteLink | undefined): boolean {
