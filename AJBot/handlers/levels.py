@@ -56,7 +56,7 @@ _FLOURISHES = [
     "The relationship has been recompiled with new features.",
     "Somewhere, a scrapbook just updated itself.",
     "This milestone was earned one questionable decision at a time.",
-    "The pigeon has filed the paperwork. It's official.",
+    "Your agent has filed the paperwork. It's official.",
 ]
 
 

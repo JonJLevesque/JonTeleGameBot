@@ -38,7 +38,7 @@ FALLBACK_TRIBUTES = [
     "Happy birthday, {name}! I checked the ledger: you have been an "
     "absolute joy to run games for. The court rules that today, you are "
     "right about everything. 🥂 To {name}!",
-    "It's {name}'s birthday! By decree of the pigeon: today the cookies "
+    "It's {name}'s birthday! By decree of your travel agent: today the cookies "
     "flow, the dares are optional, and the Wordle is beatable. 🥂 To {name}!",
 ]
 

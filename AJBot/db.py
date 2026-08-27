@@ -197,6 +197,19 @@ def init(path: str) -> None:
             UNIQUE (chat_id, message_id)
         );
 
+        CREATE TABLE IF NOT EXISTS places (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id  INTEGER NOT NULL,
+            name     TEXT NOT NULL,
+            display  TEXT NOT NULL,
+            lat      REAL NOT NULL,
+            lon      REAL NOT NULL,
+            note     TEXT,
+            added_by TEXT NOT NULL,
+            ts       TEXT DEFAULT (datetime('now')),
+            UNIQUE (chat_id, name)
+        );
+
         CREATE TABLE IF NOT EXISTS birthdays (
             user_id         INTEGER PRIMARY KEY,
             name            TEXT NOT NULL,
@@ -277,6 +290,8 @@ def init(path: str) -> None:
     _ensure_column("whispers", "teased", "INTEGER NOT NULL DEFAULT 0")
     _ensure_column("shop_items", "owner_id", "INTEGER")
     _ensure_column("shop_items", "owner_name", "TEXT")
+    _ensure_column("quotes", "wing", "TEXT")
+    _ensure_column("quotes", "plaque", "TEXT")
     _conn.commit()
 
 
@@ -1347,3 +1362,61 @@ def get_paranoia(round_id: int):
 def finish_paranoia(round_id: int) -> None:
     with _db() as c:
         c.execute("UPDATE paranoia_rounds SET stage = 'done' WHERE id = ?", (round_id,))
+
+
+# ----------------------------------------------------------------- places
+
+def place_add(chat_id, name, display, lat, lon, note, added_by) -> int | None:
+    try:
+        with _db() as c:
+            cur = c.execute(
+                "INSERT INTO places (chat_id, name, display, lat, lon, note, added_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (chat_id, name.lower(), display, lat, lon, note, added_by),
+            )
+        return cur.lastrowid
+    except sqlite3.IntegrityError:
+        return None
+
+
+def places(chat_id):
+    return _db().execute("SELECT * FROM places WHERE chat_id = ? ORDER BY ts, id", (chat_id,)).fetchall()
+
+
+def place_remove(chat_id, name) -> bool:
+    with _db() as c:
+        cur = c.execute("DELETE FROM places WHERE chat_id = ? AND name = ?", (chat_id, name.lower()))
+    return cur.rowcount > 0
+
+
+# ----------------------------------------------------------------- museum
+
+def quote_set_curation(quote_id, wing, plaque) -> None:
+    with _db() as c:
+        c.execute("UPDATE quotes SET wing = ?, plaque = ? WHERE id = ?", (wing, plaque, quote_id))
+
+
+def museum_wings(chat_id) -> list:
+    """[(wing, count)] — uncurated quotes count under 'Uncatalogued'."""
+    rows = _db().execute(
+        "SELECT COALESCE(wing, 'Uncatalogued') AS wing, COUNT(*) AS n FROM quotes WHERE chat_id = ? "
+        "GROUP BY COALESCE(wing, 'Uncatalogued') ORDER BY n DESC, wing", (chat_id,)
+    ).fetchall()
+    return [(r["wing"], r["n"]) for r in rows]
+
+
+def museum_wing(chat_id, wing):
+    if wing.lower() == "uncatalogued":
+        return _db().execute("SELECT * FROM quotes WHERE chat_id = ? AND wing IS NULL ORDER BY ts", (chat_id,)).fetchall()
+    return _db().execute("SELECT * FROM quotes WHERE chat_id = ? AND LOWER(wing) = LOWER(?) ORDER BY ts", (chat_id, wing)).fetchall()
+
+
+def uncurated_quotes(chat_id, limit=10):
+    return _db().execute("SELECT * FROM quotes WHERE chat_id = ? AND wing IS NULL ORDER BY id LIMIT ?", (chat_id, limit)).fetchall()
+
+
+def quote_by_id(chat_id, quote_id):
+    return _db().execute("SELECT * FROM quotes WHERE chat_id = ? AND id = ?", (chat_id, quote_id)).fetchone()
+
+
+def random_memory(chat_id):
+    return _db().execute("SELECT * FROM memories WHERE chat_id = ? ORDER BY RANDOM() LIMIT 1", (chat_id,)).fetchone()

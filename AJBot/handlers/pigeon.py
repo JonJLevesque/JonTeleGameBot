@@ -1,4 +1,4 @@
-"""/tell — the carrier-pigeon service. 🕊️
+"""/tell — the postcard desk. 📮
 
 DM the bot a message for someone in your group and it delivers it to their
 DMs, word for word, without you having to say it to them directly. If their
@@ -25,14 +25,14 @@ MAX_LEN = 3000  # leaves headroom under Telegram's 4096-char message limit
 
 _TAGLINES = [
     "A little bird told me. I am the little bird.",
-    "Delivered word for word, as sworn under pigeon oath.",
+    "Delivered word for word, as sworn under postal oath.",
     "I flew all this way, the least you could do is read it.",
-    "No take-backs — the pigeon has already landed.",
-    "Contents faithfully transcribed. The pigeon reads nothing. (The pigeon reads everything.)",
+    "No take-backs — the postcard has already been stamped.",
+    "Contents faithfully transcribed. Your agent reads nothing. (Your agent reads everything.)",
 ]
 
 USAGE = (
-    "🕊️ <b>Carrier-pigeon service</b>\n\n"
+    "📮 <b>Postcard desk</b>\n\n"
     "Tell me something here in private and I'll deliver it for you:\n"
     "  <code>/tell Jon you were right about the movie</code>\n"
     "  <code>/tell @username miss you, dummy</code>\n\n"
@@ -152,10 +152,10 @@ def _delivery_text(w) -> str:
             f"📜 <b>A time capsule has arrived!</b> {sender} sealed this"
             f"{sealed}:\n\n"
             f"“{body}”\n\n"
-            f"<i>Carried through time, unopened, by yours truly. 🕊️</i>"
+            f"<i>Carried through time, unopened, by your agent. 📮</i>"
         )
     return (
-        f"🕊️ <b>Special delivery!</b> {sender} asked me "
+        f"📮 <b>Special delivery!</b> {sender} asked me "
         f"to tell you something:\n\n"
         f"“{body}”\n\n"
         f"<i>{random.choice(_TAGLINES)}</i>"
@@ -189,7 +189,7 @@ async def flush_inbox(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
         try:
             await context.bot.send_message(
                 w["sender_id"],
-                f"🕊️ Delivered! {w['recipient_name']} just picked up "
+                f"📮 Delivered! {w['recipient_name']} just picked up "
                 f"your {what}.",
             )
         except TelegramError:
@@ -238,7 +238,7 @@ async def _courier_job(context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     w["sender_id"],
-                    f"🕊️ Delivered! Your {what} for "
+                    f"📮 Delivered! Your {what} for "
                     f"{w['recipient_name']} just arrived.",
                 )
             except TelegramError:
@@ -251,7 +251,7 @@ async def _courier_job(context: ContextTypes.DEFAULT_TYPE):
 
 def schedule(app) -> None:
     app.job_queue.run_repeating(
-        _courier_job, interval=60, first=15, name="pigeon-courier"
+        _courier_job, interval=60, first=15, name="postcard-courier"
     )
 
 
@@ -259,7 +259,7 @@ def schedule(app) -> None:
 
 async def _redirect_to_dm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     btn = InlineKeyboardMarkup([[InlineKeyboardButton(
-        "🕊️ Whisper in my DMs",
+        "📮 Whisper in my DMs",
         url=f"https://t.me/{context.bot.username}?start=tell",
     )]])
     await update.effective_message.reply_text(
@@ -315,7 +315,7 @@ async def tell_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = " ".join(rest)
     if not message:
         await msg.reply_text(
-            "The pigeon has a time and a place, but nothing to say — "
+            "There's a time and a place, but nothing to say — "
             "add the message after the schedule."
         )
         return
@@ -349,8 +349,8 @@ async def tell_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if deliver_at is not None:
         await msg.reply_html(
-            f"🕊️ Scheduled! I'll deliver it to <b>{safe_name}</b> on "
-            f"{_fmt_local(deliver_at)}. Consider it in the pigeon's satchel."
+            f"📮 Scheduled! I'll deliver it to <b>{safe_name}</b> on "
+            f"{_fmt_local(deliver_at)}. Consider it in the outbound mail."
         )
         return
 
@@ -361,7 +361,7 @@ async def tell_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     if await _try_deliver(context, whisper):
         await msg.reply_html(
-            f"🕊️ Delivered to <b>{safe_name}</b>, word for word. "
+            f"📮 Delivered to <b>{safe_name}</b>, word for word. "
             f"What happens next is between you two."
         )
     elif await _tease_in_group(context, whisper):

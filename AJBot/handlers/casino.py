@@ -4,13 +4,13 @@ The economy's sink: both games are played against the house, so cookies
 actually leave circulation (the shop and wagers only move them around).
 Slots ride Telegram's native 🎰 dice — the animation runs client-side and
 the value (1..64) is decided by Telegram's servers, so the house can't
-cheat and neither can the pigeon. Blackjack is a full inline-button hand
+cheat and neither can the house. Blackjack is a full inline-button hand
 persisted in casino_hands, so an in-progress hand survives a bot restart
 (the stake is deducted at the deal and settled at the end).
 
 House rules, posted at the door: slots pay 10x on 7️⃣7️⃣7️⃣, 5x on any
 other triple, 1.5x when the first two reels match, stake back when the
-last two do (RTP ≈ 86% — the pit-boss pigeon has expenses). Blackjack
+last two do (RTP ≈ 86% — the house has expenses). Blackjack
 pays 3:2, dealer stands on all 17s, double on your first decision only.
 """
 import asyncio
@@ -233,7 +233,7 @@ async def blackjack_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🃏 <b>Blackjack</b> — <code>/blackjack &lt;stake&gt;</code> "
             f"(1–{BJ_MAX} 🍪)\n\n"
             "Blackjack pays 3:2, dealer stands on all 17s, double on your "
-            "first decision. The pit boss is a pigeon; he has seen everything."
+            "first decision. The pit boss has seen everything."
         )
         return
     stake = int(args[0])

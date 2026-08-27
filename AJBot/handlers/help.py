@@ -55,7 +55,7 @@ button), results auto-post to the group, fastest solver wins the day's 🍪
 (and, with spicy mode, steamier) as the days go
 /recap on|now|off — Sunday-evening scoreboard of the week
 
-<b>Carrier pigeon</b> 🕊️
+<b>Postcard desk</b> 📮
 /tell — DM me something for someone in your group and I deliver it to
 them, word for word, so you don't have to say it directly — now, or
 later (/tell Jon in 2h…, at 9pm…, tomorrow 8am…)
@@ -66,6 +66,12 @@ duration and it arrives months from now, when they least expect it
 <b>The archives</b> 📜
 /quote — reply to a legendary message to preserve it forever
 /memory [word] — resurface a random archived quote
+
+<b>Us</b> 💞
+/been place | note — pin somewhere you've been together (/been list)
+/map — every pin on one map · /places bracket — knockout for best trip ever
+/usquiz — how well do you know each other? A quiz built from what I've learned
+/museum — the Museum of Quotes: wings, plaques, exhibit of the day (/quote donates)
 
 <b>Household</b> 🏠
 /pet — the chat's shared pet: adopt it, feed it (1 🍪), play with it,
@@ -124,7 +130,11 @@ COMMAND_LIST = [
     ("tell", "DM me a message; I deliver it for you 🕊️"),
     ("capsule", "Seal a time capsule for months from now 📜"),
     ("inbox", "Collect whispers waiting for you"),
-    ("quote", "Reply to a message to archive it forever"),
+    ("quote", "Donate a message to the museum"),
+    ("been", "Pin a place you've been together"),
+    ("map", "The map of everywhere you've been"),
+    ("usquiz", "How well do you know each other?"),
+    ("museum", "The Museum of Quotes"),
     ("memory", "Resurface a random archived quote"),
     ("battleship", "Sink the hidden fleet 🚢"),
     ("help", "List all commands"),

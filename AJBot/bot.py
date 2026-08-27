@@ -15,7 +15,7 @@ import config
 import db
 from handlers import (
     all_handlers, birthday, brain, dailyq, levels, pet, pigeon, recap,
-    track_users,
+    track_users, usquiz,
 )
 from handlers import wordle as wordle_handlers
 from handlers.common import LOCAL_TZ
@@ -63,6 +63,7 @@ async def _post_init(app: Application):
     pet.schedule(app)
     brain.schedule(app)
     birthday.schedule(app)
+    usquiz.schedule(app)
     app.job_queue.run_daily(
         _backup_job, time(3, 30, tzinfo=LOCAL_TZ), name="db-backup"
     )

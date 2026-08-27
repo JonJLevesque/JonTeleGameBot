@@ -135,7 +135,7 @@ def handle_forget(chat_id: int, user_id: int, kind: str, payload: str
     if kind == "forget_all":
         n = len(db.memories_all(chat_id))
         if n == 0:
-            return "The file is already empty. I am a blank, serene pigeon.", None
+            return "The file is already empty. I am a blank, serene brochure.", None
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton(f"🕳 Yes, wipe all {n}", callback_data=_cb(user_id, "wipe")),
             InlineKeyboardButton("Keep them", callback_data=_cb(user_id, "keep")),

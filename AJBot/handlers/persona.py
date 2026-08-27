@@ -1,7 +1,7 @@
 """The bot's voice. 🐦
 
 Reply to one of the bot's messages or @mention it in a group and it answers
-in character — a carrier-pigeon concierge who knows the standings. Very
+in character — a travel-agent concierge who knows the standings. Very
 rarely, it butts in unprompted. It dotes on the chat members and treats its
 operator (config.ADMIN_ID) with long-suffering butler energy — and it is
 discreet about the difference.
@@ -35,7 +35,7 @@ DAILY_CAP = 40
 INTERJECT_AFTER = 30    # human messages since the bot last spoke
 INTERJECT_CHANCE = 0.021  # dialed back 30% from 0.03 by operator request
 
-# Two banks, one per register (see is_operator): the pigeon dotes on the
+# Two banks, one per register (see is_operator): the agent dotes on the
 # members and long-suffers the management.
 CANNED_WARM = [
     "Coo. For you? Anything.",
@@ -48,7 +48,7 @@ CANNED_WARM = [
     "Say the word and the court leans your way.",
 ]
 CANNED_BUTLER = [
-    "I'm a carrier pigeon, not a therapist. …but go on.",
+    "I book trips, not therapy. …but go on.",
     "I heard my name. I always hear my name. Sigh.",
     "My lawyer says I can't comment without a cookie retainer.",
     "Take it to the court — /settle. Don't expect much.",

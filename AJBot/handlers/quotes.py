@@ -52,10 +52,19 @@ async def quote_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text("Already in the archive — a true classic. 📜")
         return
     n = db.quote_count(update.effective_chat.id)
-    await msg.reply_html(
-        f"📌 Preserved for posterity — quote #{n} in the archive. "
-        f"(/memory brings one back at random.)"
-    )
+    from . import museum
+    curated = await museum.curate(update.effective_chat.id, saved)
+    row = db.quote_by_id(update.effective_chat.id, saved)
+    if curated and row and row["wing"]:
+        await msg.reply_html(
+            f"🏛️ Accessioned into the <b>{html.escape(row['wing'])}</b> wing as exhibit #{n}.\n"
+            f"<i>{html.escape(row['plaque'] or '')}</i>"
+        )
+    else:
+        await msg.reply_html(
+            f"📌 Preserved for posterity — quote #{n} in the archive. "
+            f"(/museum to browse, /memory for a random one.)"
+        )
 
 
 async def memory_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
