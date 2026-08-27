@@ -42,16 +42,16 @@ export async function grantAccess(env: Env, api: Api, cfg: Config, userId: numbe
   ];
   if (s.rail === "external") {
     const channel = await issueLink(env, api, cfg, "channel", userId);
-    lines.push("", "📸 <b>The feed</b> (exclusive posts):", channel);
+    lines.push("", `📸 <b>${esc(cap(cfg.roomNames.feed))}</b> (exclusive posts):`, channel);
   } else {
-    lines.push("", "📸 <b>The feed</b>: you're in through your subscription link.");
+    lines.push("", `📸 <b>${esc(cap(cfg.roomNames.feed))}</b>: you're in through your subscription link.`);
   }
   if (tierAllowsGroup(cfg, s.tier)) {
     const group = await issueLink(env, api, cfg, "group", userId);
-    lines.push("", `💬 <b>The room</b> (chat, games, ${esc(cfg.pointsName)}):`, group);
+    lines.push("", `💬 <b>${esc(cap(cfg.roomNames.room))}</b> (chat, games, ${esc(cfg.pointsName)}):`, group);
   } else {
     const upgrade = cfg.tiers.find((t) => t.group);
-    if (upgrade) lines.push("", `💬 The room (chat, games, ${esc(cfg.pointsName)}) is ${upgrade.emoji} ${esc(upgrade.name)} only — /start any time to upgrade.`);
+    if (upgrade) lines.push("", `💬 ${esc(cap(cfg.roomNames.room))} (chat, games, ${esc(cfg.pointsName)}) is ${upgrade.emoji} ${esc(upgrade.name)} only — /start any time to upgrade.`);
   }
   if (s.rail === "external" || tierAllowsGroup(cfg, s.tier)) {
     lines.push("", "These links are yours alone: each works once and expires in 48 hours. Tap, request to join, and you're in within seconds.");
@@ -67,6 +67,8 @@ export async function grantAccess(env: Env, api: Api, cfg: Config, userId: numbe
   await dm(api, userId, lines.join("\n"), { link_preview_options: { is_disabled: true } });
   return true;
 }
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export async function revokeAccess(env: Env, api: Api, cfg: Config, userId: number, opts: { ban: boolean; reason: string }) {
   if (opts.ban) {

@@ -23,8 +23,10 @@ export interface Config {
   pointsEmoji: string;
   xpName: string;              // "Heat"
   xpEmoji: string;
-  groupChatId: number;         // 0 until configured via /setup
-  channelChatId: number;
+  groupChatId: number;         // 0 until configured via /setup — the VIP+ chat ("the Backroom")
+  channelChatId: number;       // the paid feed ("the Lounge")
+  lobbyChatId: number;         // free public chat where the funnel starts ("the Lobby")
+  roomNames: { lobby: string; feed: string; room: string };
   gamesTopicId: number | null;
   tiers: TierConfig[];
   attestationVersion: number;
@@ -56,6 +58,8 @@ export const DEFAULT_CONFIG: Config = {
   xpEmoji: "🔥",
   groupChatId: 0,
   channelChatId: 0,
+  lobbyChatId: 0,
+  roomNames: { lobby: "the Lobby", feed: "the Lounge", room: "the Backroom" },
   gamesTopicId: null,
   tiers: [
     { code: "vip", name: "VIP", emoji: "🌸", stars: 500, usd: 9.99, xpMultiplier: 1, renewalPoints: 100, voteWeight: 1, group: false },
@@ -123,8 +127,8 @@ export function tierAllowsGroup(cfg: Config, code: string | null | undefined): b
   return tierByCode(cfg, code)?.group ?? false;
 }
 
-export function tierAccessLabel(t: TierConfig): string {
-  return t.group ? "📸 feed + 💬 room" : "📸 feed";
+export function tierAccessLabel(t: TierConfig, cfg: Config = DEFAULT_CONFIG): string {
+  return t.group ? `📸 ${cfg.roomNames.feed} + 💬 ${cfg.roomNames.room}` : `📸 ${cfg.roomNames.feed}`;
 }
 
 export function isAdmin(env: Env, userId: number | undefined): boolean {

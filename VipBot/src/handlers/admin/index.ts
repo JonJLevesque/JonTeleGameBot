@@ -54,7 +54,7 @@ async function setupText(ctx: Ctx): Promise<string> {
     `group: <code>${c.groupChatId}</code> · channel: <code>${c.channelChatId}</code>`,
     `tz: ${esc(c.creatorTz)} · ai: ${c.aiEnabled ? "on" : "off"} (${esc(c.aiModel)})`,
     `tiers: ${c.tiers.map((t) => `${t.emoji} ${esc(t.code)} ${t.stars}⭐/$${t.usd}`).join(", ")}`,
-    "", "/setup group|channel &lt;id&gt; · tz &lt;IANA&gt; · name &lt;text&gt; · creator &lt;text&gt; · ai on|off · price &lt;tier&gt; &lt;stars&gt; &lt;usd&gt; · access &lt;tier&gt; feed|both",
+    "", "/setup lobby|channel|group &lt;id&gt; · names &lt;lobby&gt; | &lt;feed&gt; | &lt;room&gt; · tz &lt;IANA&gt; · name &lt;text&gt; · creator &lt;text&gt; · ai on|off · price &lt;tier&gt; &lt;stars&gt; &lt;usd&gt; · access &lt;tier&gt; feed|both",
   ].join("\n");
 }
 
@@ -74,7 +74,7 @@ export function registerAdmin(bot: Bot<Ctx>) {
     const st = m.new_chat_member.status;
     if ((st === "administrator" || st === "member") && m.chat.type !== "private") {
       const title = (m.chat as { title?: string }).title ?? String(m.chat.id);
-      for (const id of adminIds(ctx)) ctx.defer(dm(ctx.api, id, `Added to <b>${esc(title)}</b> (<code>${m.chat.id}</code>). Use /setup group|channel ${m.chat.id}.`));
+      for (const id of adminIds(ctx)) ctx.defer(dm(ctx.api, id, `Added to <b>${esc(title)}</b> (<code>${m.chat.id}</code>). Use /setup lobby|channel|group ${m.chat.id} (lobby = free chat, channel = paid feed, group = VIP+ chat).`));
     }
     await next();
   });
@@ -87,9 +87,9 @@ export function registerAdmin(bot: Bot<Ctx>) {
     const [what, ...rest] = a;
     const num = Number(rest[0]);
     switch (what) {
-      case "group": case "channel": {
+      case "group": case "channel": case "lobby": {
         if (!Number.isInteger(num)) { await ctx.reply("Need a numeric chat id."); return; }
-        const key = what === "group" ? "groupChatId" : "channelChatId";
+        const key = what === "group" ? "groupChatId" : what === "channel" ? "channelChatId" : "lobbyChatId";
         await setConfig(ctx.env, key, num);
         await audit(ctx.env, uid, `setup.${what}`, num);
         await ctx.reply(`${what} set to ${num}.`); return;
@@ -122,6 +122,15 @@ export function registerAdmin(bot: Bot<Ctx>) {
         await setConfig(ctx.env, "tiers", tiers);
         await audit(ctx.env, uid, "setup.access", code, { group: t.group });
         await ctx.reply(`${t.emoji} ${t.name} now unlocks ${t.group ? "the feed and the room" : "the feed only"}.`);
+        return;
+      }
+      case "names": {
+        const parts = rest.join(" ").split("|").map((s) => s.trim());
+        if (parts.length !== 3 || parts.some((p) => !p)) { await ctx.reply("Usage: /setup names the Lobby | the Lounge | the Backroom"); return; }
+        const roomNames = { lobby: parts[0]!, feed: parts[1]!, room: parts[2]! };
+        await setConfig(ctx.env, "roomNames", roomNames);
+        await audit(ctx.env, uid, "setup.names", undefined, roomNames);
+        await ctx.reply(`Rooms are now ${roomNames.lobby} → ${roomNames.feed} → ${roomNames.room}.`);
         return;
       }
       case "price": {

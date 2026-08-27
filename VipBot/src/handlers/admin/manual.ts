@@ -5,8 +5,11 @@ import type { Config } from "../../config";
 export function manual(cfg: Config): string {
   const tiers = cfg.tiers.map((t) => `${t.emoji} ${t.name} (${t.code}): ⭐${t.stars}/30d or $${t.usd}; unlocks ${t.group ? "the feed AND the room" : "the feed only"}; XP ×${t.xpMultiplier}; ${t.renewalPoints} ${cfg.pointsName} on renewal`).join("\n");
   return `
-COMMUNITY: "${cfg.communityName}" run by ${cfg.creatorName}. Two rooms: the CHANNEL ("the feed") where only the creator posts content,
-and the GROUP ("the room") where members chat and the games live. Both are private; the bot is admin in both.
+COMMUNITY: "${cfg.communityName}" run by ${cfg.creatorName}. Three rooms:
+- ${cfg.roomNames.lobby} (LOBBY): free public chat. The bot greets newcomers with the pitch and a Join button; /join repeats it. No games here.
+- ${cfg.roomNames.feed} (CHANNEL): the paid feed where only the creator posts. Every paid tier gets in.
+- ${cfg.roomNames.room} (GROUP): the VIP+ chat where members talk and all games/points live.
+The bot must be admin in all three. Rename them with /setup names <lobby> | <feed> | <room>.
 
 TIERS:
 ${tiers}

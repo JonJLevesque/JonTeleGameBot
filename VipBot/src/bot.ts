@@ -10,6 +10,7 @@ import { registerEconomy } from "./handlers/economy";
 import { registerGames } from "./handlers/games";
 import { registerShop } from "./handlers/shop";
 import { registerAdmin } from "./handlers/admin";
+import { registerLobby } from "./handlers/lobby";
 
 export async function createBot(env: Env, exec: ExecutionContext): Promise<Bot<Ctx>> {
   const cfg = await loadConfig(env);
@@ -31,6 +32,7 @@ export async function createBot(env: Env, exec: ExecutionContext): Promise<Bot<C
   // Order matters: admin first (DM-only, gated), then funnel (DM), membership events,
   // then economy observers, games, shop.
   registerAdmin(bot);
+  registerLobby(bot);   // before membership: it passes chat_member through
   registerFunnel(bot);
   registerMembership(bot);
   registerEconomy(bot);
